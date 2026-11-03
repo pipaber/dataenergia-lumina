@@ -21,6 +21,8 @@ flowchart LR
 | Derivadas | `tablas_derivadas` | `BigQueryInsertJobOperator` (query) | `src/sql/gold_derivadas.sql`, el mismo SQL que usa `infra/06_cargar_bigquery.sh` |
 | Calidad | `sin_duplicados`, `diario_cuadra_con_30min`, `tablas_completas` | `BigQueryValueCheckOperator`, `BigQueryCheckOperator` | Si un control falla, la corrida queda en rojo |
 
+**Parámetro `streaming`** (activo por defecto): silver suma lo que el streaming copió a `raw/streaming/` (sincronización 1), también en modo muestra.
+
 **Parámetro `muestra`**: procesa 2 bloques, escribe en `gs://<curated>/muestra` y carga en el dataset `lumina_muestra`, sin tocar las tablas reales. Cuesta ~US$0.16; la corrida completa, ~US$0.65.
 
 **Idempotencia**: cada tarea sobrescribe su salida (Parquet en modo *overwrite*, BigQuery con `WRITE_TRUNCATE`), así que un reintento o una re-ejecución no duplica datos.

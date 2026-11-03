@@ -8,3 +8,5 @@ lumina-ops (VM e2-standard-4, prueba Airflow)  estado=DESTRUIDA  duracion=11 min
 BigQuery 2026-10-21 (vistas OLAP + tarifas dToU + pronóstico D+1 con BigQuery ML)  estado=OK  68.2 GiB facturados  costo<=US$0.42 (a US$6.25/TiB, antes del TB gratis mensual)
 BigQuery 2026-11-03 (mantenimiento predictivo: modelo de fallas + rankings)  estado=OK  30.1 GiB facturados  costo<=US$0.19
 Cloud Run lumina-api (pública, máx. 1 instancia, escala a cero) + Cloud Build  estado=DESPLEGADA 2026-11-03  costo~US$0 (capa gratuita)
+lumina-ops (VM e2-standard-4, sesión en vivo: streaming + Airflow)  estado=DESTRUIDA  2026-11-03 20:02-21:12 UTC  duracion=70 min  costo<=US$0.16
+Spark serverless vía Airflow (2 corridas muestra: silver x2, gold x2; 2 intentos fallidos por cuota sin cómputo)  duracion=13.7 min  DCU-h=4.55 (cota sup.)  costo<=US$0.27

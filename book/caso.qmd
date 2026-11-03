@@ -31,6 +31,6 @@ Como el dataset no trae ubicación, cada hogar se asigna de forma determinístic
 
 ## Las reglas del taller
 
-- **Google Cloud con un tope de US$300** en créditos. El gasto real se registra en la [bitácora de costos](../docs/bitacora_costos.log); al 21 de octubre va en ≈ US$1.7.
+- **Google Cloud con un tope de US$300** en créditos. El gasto real se registra en la [bitácora de costos](../docs/bitacora_costos.log); al 3 de noviembre va en ≈ US$2.3.
 - **Código abierto primero:** Kafka, Spark, Airflow y Parquet, sobre servicios gestionados solo cuando son baratos (BigQuery, Cloud Storage, Spark serverless).
 - **Nada encendido sin uso:** cada recurso tiene un comando para apagarlo, y la infraestructura de tiempo real solo se enciende para probar o demostrar.

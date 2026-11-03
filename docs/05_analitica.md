@@ -1,6 +1,6 @@
-# Analítica: vistas OLAP, tarifas y pronóstico D+1
+# Analítica: vistas OLAP, tarifas, pronóstico D+1 y mantenimiento
 
-La Fase 4 convierte las tablas de la Fase 2 y las alertas de la Fase 3 en respuestas para el negocio. Todo corre en **BigQuery** desde la laptop, sin clústeres ni VM: son consultas SQL y modelos de BigQuery ML que se pagan por bytes leídos. La corrida completa de esta fase leyó 68 GiB, **≤ US$0.42**.
+La Fase 4 convierte las tablas de la Fase 2 y las alertas de la Fase 3 en respuestas para el negocio. Todo corre en **BigQuery** desde la laptop, sin clústeres ni VM: son consultas SQL y modelos de BigQuery ML que se pagan por bytes leídos. Las corridas de esta fase leyeron unos 98 GiB en total, **≤ US$0.61**.
 
 | Paso | Script | Qué crea | Vertical |
 |---|---|---|---|
@@ -8,7 +8,8 @@ La Fase 4 convierte las tablas de la Fase 2 y las alertas de la Fase 3 en respue
 | 2 | [`infra/09_vistas_olap.sh`](../infra/09_vistas_olap.sh) | 5 vistas en `lumina_olap` que unen historia y hoy | III · Informes |
 | 3 | [`infra/11_tarifas.sh`](../infra/11_tarifas.sh) | Factura 2013 con ambas tarifas y respuesta a los eventos de precio | III · Informes |
 | 4 | [`infra/10_pronostico.sh`](../infra/10_pronostico.sh) | Dos modelos D+1 (zona y hogar), sus pronósticos y métricas | II · Planes diarios |
-| 5 | [`src/api/`](../src/api/main.py) | API REST de solo lectura sobre esas tablas (código listo, sin desplegar) | Exposición |
+| 5 | [`infra/12_mantenimiento.sh`](../infra/12_mantenimiento.sh) | Modelo de fallas por medidor y ranking de transformadores con sobrecarga | IV · Mantenimiento |
+| 6 | [`infra/13_api_cloud_run.sh`](../infra/13_api_cloud_run.sh) | API REST de solo lectura publicada en Cloud Run | Exposición |
 
 ## Vistas que unen historia y hoy (sincronización 3 y 4)
 
@@ -87,6 +88,30 @@ Para la app de clientes basta el pronóstico por hogar tal como está. Una mejor
 
 **Costo.** Los boosted trees releen los datos en cada iteración, por eso facturan 60 GiB aunque las tablas de variables pesen menos de 1 GiB. Se eligieron por precio: BigQuery ML los cobra a la tarifa de consultas (US$6.25/TiB), mientras que `LINEAR_REG` y `ARIMA_PLUS` cuestan US$312.50/TiB.
 
+## Mantenimiento predictivo
+
+La vertical IV pregunta qué medidores fallan y qué zonas se sobrecargan. [`src/sql/mantenimiento.sql`](../src/sql/mantenimiento.sql) responde con dos rankings, ambos en BigQuery, por ≈ US$0.19.
+
+**Medidores: ¿cuál fallará el mes siguiente?** Un medidor «falla» en un mes si tiene al menos 2 días sin datos o con menos del 90 % de sus lecturas, o al menos 2 días en cero; eso incluye al que deja de reportar. Un modelo `BOOSTED_TREE_CLASSIFIER` usa las señales del mes actual y de los 3 anteriores (días malos, días en cero, cambio de consumo, antigüedad, segmento). Se entrenó con los meses hasta junio de 2013 y se evaluó de julio a diciembre de 2013. Su AUC es **0.82**: ordena bien a los medidores por riesgo.
+
+| Si cada mes se revisa… | Revisados | Fallas encontradas | Acierto | Fallas cubiertas |
+|---|---:|---:|---:|---:|
+| El 5 % de medidores con mayor riesgo según el modelo | 1,585 | 638 | 40.3 % | **62.1 %** |
+| Los que fallaron este mes (regla simple) | 749 | 554 | 74.0 % | 53.9 % |
+| El mismo número que la regla simple, según el modelo | 749 | 551 | 73.6 % | 53.7 % |
+| Al azar | — | — | 3.3 % | — |
+
+La lectura honesta: **con el mismo presupuesto de inspección, el modelo empata con la regla simple**, porque un medidor que falló tiende a seguir fallando. Su valor está en ir más allá de esa lista: al ampliar la revisión al 5 %, los 836 medidores adicionales tienen un 10 % de acierto, tres veces más que al azar, y se cubre el 62 % de las fallas en lugar del 54 %. El ranking para la cuadrilla está en `lumina_ml.ranking_medidores`.
+
+**Transformadores: ¿cuáles se sobrecargan cada invierno?** El dataset no trae la capacidad nominal de cada transformador, así que se usa una **capacidad de referencia supuesta**: el percentil 99 de la carga por medidor en hora punta del invierno 2012-13 (1.16 kW por medidor). Se cuentan los días en que cada transformador la superó en los dos inviernos y el crecimiento de su punta frente al de toda la red, porque el invierno 2013-14 fue más templado.
+
+| Resultado | Valor |
+|---|---|
+| Transformadores con sobrecarga en **ambos** inviernos | 14 de 112 |
+| El más crítico | Z7-T12: 48 días sobre la capacidad en 2012-13 y 33 en 2013-14, con la punta creciendo 2.4 % más que la red |
+
+En producción, la capacidad de referencia sería la potencia nominal de cada transformador, que tienen las distribuidoras.
+
 ## API de consulta
 
 [`src/api/main.py`](../src/api/main.py) es una API FastAPI de solo lectura, pensada para Cloud Run (escala a cero, sin costo cuando nadie la usa). Usa consultas parametrizadas y un tope de 2 GiB facturados por consulta, para que una petición mal formada no genere gasto.
@@ -101,11 +126,12 @@ Para la app de clientes basta el pronóstico por hogar tal como está. Una mejor
 | `/alertas?tipo=&zona=` | Últimas alertas del streaming |
 | `/segmentos/consumo?desde=&hasta=` | Consumo por segmento Acorn y tarifa |
 
-El despliegue en Cloud Run queda pendiente: crea un endpoint público, así que requiere visto bueno.
+| `/mantenimiento/medidores?zona=&limite=` | Medidores con mayor riesgo de falla |
+| `/mantenimiento/transformadores?limite=` | Transformadores con sobrecarga en hora punta |
+
+**Publicada en <https://lumina-api-csascndwia-uc.a.run.app/docs>** (documentación interactiva). Para la demo es pública, con un máximo de 1 instancia y una cuenta de servicio que solo puede leer los datasets que usa. Las rutas probadas responden en 1–2 s. Se borra con `bash infra/13_api_cloud_run.sh borrar`.
 
 ## Pendiente de esta fase
 
-- Despliegue de la API en Cloud Run.
-- Mantenimiento predictivo: ranking de medidores con fallas y de zonas con sobrecarga recurrente, a partir de `v_calidad_medidores` y `v_alertas`.
-- Tablero en Looker Studio sobre las vistas `lumina_olap`.
-- Demo end-to-end con el replay de la ola de frío.
+- Armar el tablero en Looker Studio con la [guía](06_guia_looker_studio.md).
+- Ensayar la demo con el [guion](08_guion_demo.md).

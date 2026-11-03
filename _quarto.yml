@@ -43,9 +43,12 @@ book:
         - docs/03_streaming.md
         - docs/arquitectura_tecnica.md
         - docs/04_orquestacion_airflow.md
+        - docs/07_entrega2.md
     - part: "Parte III · Exposición y demo (Entrega 3)"
       chapters:
         - docs/05_analitica.md
+        - docs/06_guia_looker_studio.md
+        - docs/08_guion_demo.md
   appendices:
     - docs/AVANCE.md
     - book/reproducir.qmd

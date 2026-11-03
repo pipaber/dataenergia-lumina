@@ -2,15 +2,15 @@
 
 Leyenda: ✅ hecho y verificado · 🟡 parcial o bloqueado · ⬜ pendiente
 
-**Actualizado:** 2026-10-23 · **Costo acumulado:** ≈ US$1.7 de US$300 · **Recursos encendidos:** ninguno
+**Actualizado:** 2026-11-03 · **Costo acumulado:** ≈ US$2.3 de US$300 · **Recursos encendidos:** solo la API en Cloud Run (escala a cero)
 
 ## Resumen por entrega
 
 | Entrega | Fecha | Estado | Falta |
 |---|---|---|---|
-| 1 · Sustentación + blueprint | 24-oct-2026 | 🟡 | Revisión y envío del documento (alumno) |
-| 2 · Pipelines y modelado | 07-nov-2026 | 🟡 | Corrida del DAG de Airflow con Spark (cuota ya en 24 vCPU; falta encender la VM) |
-| 3 · API, demo y sustentación | 20/21-nov-2026 | 🟡 | Despliegue de la API, mantenimiento predictivo, Looker Studio, demo y slides (vistas, tarifas y pronóstico listos) |
+| 1 · Sustentación + blueprint | 24-oct-2026 | ✅ | Entregada |
+| 2 · Pipelines y modelado | 07-nov-2026 | ✅ | Documento listo ([07_entrega2.md](07_entrega2.md)); falta entregarlo (alumno) |
+| 3 · API, demo y sustentación | 20/21-nov-2026 | 🟡 | Armar el tablero de Looker Studio (alumno, con la guía) y ensayar la demo; API, mantenimiento, guion y slides listos |
 
 ## Hitos
 
@@ -37,18 +37,19 @@ Leyenda: ✅ hecho y verificado · 🟡 parcial o bloqueado · ⬜ pendiente
 - ✅ Calculadora de consumo del primer año → `src/costos/calculadora_consumo.py`
 - ✅ Términos y siglas definidos en su primer uso + Glosario (§ 13)
 - ✅ Versión para comité ejecutivo (comentario de la profesora): resumen con decisión, inversión vs. beneficio, riesgos y hoja de ruta; DRP con regiones us-central1/us-east1, política de respaldos, estrategia y costo de la resiliencia (+US$6.9 k/año), runbook con roles y simulacros → [entrega1/diagrama_regiones.png](entrega1/diagrama_regiones.png)
-- ⬜ **Revisar supuestos marcados y entregar (alumno, 24-oct)**
+- ✅ Entregada (24-oct)
 
 ### Fase 3 · Streaming (camino tiempo real)
 - ✅ Kafka + Spark Structured Streaming en la VM `lumina-ops` → `src/streaming/`, `infra/ops/`
 - ✅ Replay de la ola de frío: 1.84 M lecturas, 20/20 anomalías y 52/52 medidores silenciosos detectados → [03_streaming.md](03_streaming.md)
 - ✅ Umbrales calibrados offline (anomalías y picos por estación en hora punta)
-- 🟡 Regla de picos por estación validada solo offline; falta verla en vivo en el próximo encendido
+- ✅ Regla de picos por estación validada en vivo (3-nov): 33 picos, todos entre 17 y 20 h
+- ✅ Prueba en vivo del 3-nov: 523,868 lecturas, 52/52 medidores del concentrador caído, anomalías inyectadas detectadas → [07_entrega2.md](07_entrega2.md)
 
 ### Sincronización batch ↔ streaming (arquitectura Lambda)
 - ✅ Patrón definido y documentado (Lambda, no Kappa), con diagrama → [arquitectura_tecnica.md](arquitectura_tecnica.md#batch-y-streaming-arquitectura-lambda)
-- 🟡 1 · Lectura en vivo → bronze: consulta `bronze` en `streaming_job.py` y consolidación en `silver.py` implementadas; falta probarlas en vivo
-- 🟡 2 · Perfiles y umbrales → streaming: recarga cada 24 h (`Contexto.refrescar()`) implementada; falta probarla en vivo
+- ✅ 1 · Lectura en vivo → bronze → silver: probado en vivo; la muestra tiene los 5,508 medidores del replay en sus 2 días, con 0 duplicados
+- ✅ 2 · Perfiles y umbrales → streaming: recarga probada en vivo con intervalo de 3 min (`07_vm_ops.sh refresco 0.05`)
 - ✅ 3 · Vistas que unen historia (`curated`) y hoy (`rt`) en `lumina_olap` → `src/sql/olap_vistas.sql`
 - ✅ 4 · Reconciliación: de `rt` solo lo posterior al último batch; manda el batch (regla en `v_carga_zona_30min`)
 
@@ -56,7 +57,7 @@ Leyenda: ✅ hecho y verificado · 🟡 parcial o bloqueado · ⬜ pendiente
 - ✅ DAG `lumina_batch_diario`: sensor → silver → gold → 13 cargas → derivadas → 3 controles → `src/dags/`
 - ✅ Airflow en la VM, el DAG carga sin errores y el sensor pasa → [04_orquestacion_airflow.md](04_orquestacion_airflow.md)
 - ✅ Cuota `CPUS_ALL_REGIONS` subida de 12 a 24 vCPU (alcanza para VM 4 + Spark serverless 16)
-- ⬜ Corrida del DAG con Spark en el próximo encendido
+- ✅ Corrida del DAG con Spark (3-nov): 22/22 tareas en verde, con el reintento automático por cuota funcionando
 
 ### Fase 4 · Analítica (para la Entrega 3)
 Detalle y resultados → [05_analitica.md](05_analitica.md)
@@ -64,13 +65,14 @@ Detalle y resultados → [05_analitica.md](05_analitica.md)
 - ✅ Vistas OLAP en `lumina_olap` (5 vistas) → `infra/09_vistas_olap.sh`
 - ✅ Tarifa dinámica vs. plana: −2.74 % de factura, 86 % de hogares ToU ahorran; −5.6 % de consumo en eventos Altos contra control → `infra/11_tarifas.sh`
 - ✅ Pronóstico D+1 por zona (MAPE 4.4 % vs. 6.9 % ingenuo) y por hogar (WAPE 18.5 % vs. 21.3 %), ≤ US$0.42 → `infra/10_pronostico.sh`
-- ⬜ Mantenimiento predictivo: ranking de medidores defectuosos y zonas con sobrecarga (base: `v_calidad_medidores`, `v_alertas`)
-- ⬜ Tablero en Looker Studio sobre `lumina_olap`
+- ✅ Mantenimiento predictivo: modelo de fallas (AUC 0.82; con el 5 % de inspecciones, 62 % de las fallas) y 14/112 transformadores con sobrecarga recurrente → `infra/12_mantenimiento.sh`
+- 🟡 Tablero en Looker Studio: guía lista → [06_guia_looker_studio.md](06_guia_looker_studio.md); falta armarlo (alumno)
 
 ### Entrega 3 · Exposición y demo
-- 🟡 API REST (7 rutas: carga, pronóstico, consumo, factura, alertas, segmentos) → `src/api/`; falta desplegar en Cloud Run (requiere OK: endpoint público)
-- ⬜ Guion de demo end-to-end
-- ⬜ Slides con los 10 puntos del PDF (KPIs, calculadora, arquitectura, demo, conclusiones)
+- ✅ API REST publicada en Cloud Run (pública, máx. 1 instancia): https://lumina-api-csascndwia-uc.a.run.app/docs → `infra/13_api_cloud_run.sh`
+- ✅ Guion de demo end-to-end → [08_guion_demo.md](08_guion_demo.md)
+- ✅ Slides con los 10 puntos del PDF (14 diapositivas, artifact privado; descargable como PowerPoint)
+- ⬜ Ensayo de la demo (alumno) y entrega del repositorio (20-nov)
 - ✅ Libro del proyecto (Quarto Book): 19 capítulos en 3 partes + apéndices, Parte I generada desde la sustentación, flujo interactivo incluido → `_quarto.yml`, `book/`
 - ✅ Workflow de GitHub Pages → `.github/workflows/libro.yml`
 - ✅ Enunciado del curso fuera del repo (copia en `bigdata utec/`)
