@@ -40,9 +40,13 @@ SQL_DIR = Path(__file__).resolve().parent.parent / "sql"
 DATASET = "{{ 'lumina_muestra' if params.muestra else 'lumina_curated' }}"
 PREFIJO = f"gs://{BUCKET_CURATED}{{{{ '/muestra' if params.muestra else '' }}}}"
 BLOQUES = "{{ 2 if params.muestra else 0 }}"
-# Sincronización 1: silver consolida el bronze del streaming (no en modo muestra)
-BRONZE_STREAMING = f"{{{{ '' if params.muestra else 'gs://{BUCKET_RAW}/streaming/lecturas' }}}}"
-TABLA = f"`{PROYECTO}.{DATASET}." + "{}`"
+# Sincronización 1: silver consolida lo que el streaming copió a bronze (parámetro `streaming`)
+BRONZE_STREAMING = f"{{{{ 'gs://{BUCKET_RAW}/streaming/lecturas' if params.streaming else '' }}}}"
+
+
+def tabla_bq(nombre: str) -> str:
+    # Interpolación y no str.format: format convertiría las llaves dobles de Jinja en simples.
+    return f"`{PROYECTO}.{DATASET}.{nombre}`"
 
 # Tablas gold que se cargan y su particionado/clustering en BigQuery
 CARGAS: dict[str, dict] = {
@@ -99,9 +103,12 @@ with DAG(
     start_date=datetime(2026, 10, 1),
     catchup=False,
     max_active_runs=1,
-    default_args={"retries": 1, "retry_delay": timedelta(minutes=2)},
+    # Reintentos con espera: un batch de Spark puede pedir CPU antes de que el anterior libere la cuota.
+    default_args={"retries": 2, "retry_delay": timedelta(minutes=3)},
     params={"muestra": Param(False, type="boolean",
-                             description="2 bloques de medidores en lumina_muestra (prueba barata)")},
+                             description="2 bloques de medidores en lumina_muestra (prueba barata)"),
+            "streaming": Param(True, type="boolean",
+                               description="Consolidar en silver las lecturas que el streaming copió a bronze")},
     tags=["lumina", "batch", "fase-2"],
 ) as dag:
     inicio = EmptyOperator(task_id="inicio")
@@ -113,13 +120,13 @@ with DAG(
 
     silver = DataprocCreateBatchOperator(
         task_id="spark_silver", project_id=PROYECTO, region=REGION,
-        batch_id="lumina-af-silver-{{ ts_nodash | lower }}",
+        batch_id="lumina-af-silver-{{ ts_nodash | lower }}-{{ ti.try_number }}",   # un id por intento
         batch=batch_spark("silver", f"gs://{BUCKET_RAW}/kaggle", f"{PREFIJO}/silver",
                           ["--entrada-streaming", BRONZE_STREAMING]))
 
     gold = DataprocCreateBatchOperator(
         task_id="spark_gold", project_id=PROYECTO, region=REGION,
-        batch_id="lumina-af-gold-{{ ts_nodash | lower }}",
+        batch_id="lumina-af-gold-{{ ts_nodash | lower }}-{{ ti.try_number }}",
         batch=batch_spark("gold", f"{PREFIJO}/silver", f"{PREFIJO}/gold"))
 
     with TaskGroup("cargar_bigquery") as cargas:
@@ -140,22 +147,22 @@ with DAG(
         BigQueryValueCheckOperator(
             task_id="sin_duplicados", location=UBICACION_BQ, use_legacy_sql=False, pass_value=0,
             sql=f"SELECT COUNT(*) - COUNT(DISTINCT FORMAT('%s|%t', lclid, ts_utc)) "
-                f"FROM {TABLA.format('fact_consumo_30min')}")
+                f"FROM {tabla_bq('fact_consumo_30min')}")
         BigQueryValueCheckOperator(
             task_id="diario_cuadra_con_30min", location=UBICACION_BQ, use_legacy_sql=False, pass_value=0,
             sql=f"""SELECT COUNT(*) FROM (
-                      SELECT lclid, fecha, SUM(kwh) AS kwh FROM {TABLA.format('fact_consumo_30min')}
+                      SELECT lclid, fecha, SUM(kwh) AS kwh FROM {tabla_bq('fact_consumo_30min')}
                       GROUP BY 1, 2) a
-                    JOIN {TABLA.format('fact_consumo_diario')} d USING (lclid, fecha)
+                    JOIN {tabla_bq('fact_consumo_diario')} d USING (lclid, fecha)
                     WHERE ABS(a.kwh - d.kwh_total) > 0.001""")
         BigQueryCheckOperator(
             task_id="tablas_completas", location=UBICACION_BQ, use_legacy_sql=False,
             sql=f"""SELECT
-                      (SELECT COUNT(*) FROM {TABLA.format('fact_consumo_30min')}) > 0,
-                      (SELECT COUNT(*) FROM {TABLA.format('consumo_dia_anidado')})
-                        = (SELECT COUNT(*) FROM {TABLA.format('fact_consumo_diario')}),
-                      (SELECT COUNT(*) FROM {TABLA.format('umbral_zona')}) > 0,
-                      (SELECT COUNTIF(lclid IS NULL) FROM {TABLA.format('dim_hogar')}) = 0""")
+                      (SELECT COUNT(*) FROM {tabla_bq('fact_consumo_30min')}) > 0,
+                      (SELECT COUNT(*) FROM {tabla_bq('consumo_dia_anidado')})
+                        = (SELECT COUNT(*) FROM {tabla_bq('fact_consumo_diario')}),
+                      (SELECT COUNT(*) FROM {tabla_bq('umbral_zona')}) > 0,
+                      (SELECT COUNTIF(lclid IS NULL) FROM {tabla_bq('dim_hogar')}) = 0""")
 
     fin = EmptyOperator(task_id="fin")
 

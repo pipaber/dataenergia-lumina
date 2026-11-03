@@ -61,6 +61,25 @@ permisos() {
     --member "serviceAccount:$SA_EMAIL" --role roles/storage.objectAdmin >/dev/null
   gcloud storage buckets add-iam-policy-binding "gs://$BUCKET_RAW" \
     --member "serviceAccount:$SA_EMAIL" --role roles/storage.objectViewer >/dev/null
+  # Sincronización 1: el streaming escribe la copia cruda solo bajo raw/streaming/; el resto de raw es de solo lectura.
+  # gcloud no agrega bindings condicionales a una política v1, así que se edita la política (v3) como JSON.
+  local pol; pol="$(mktemp)"
+  gcloud storage buckets get-iam-policy "gs://$BUCKET_RAW" --format=json > "$pol"
+  python -E -X utf8 - "$pol" "$SA_EMAIL" "$BUCKET_RAW" <<'PY'
+import json, sys
+ruta, sa, bucket = sys.argv[1:]
+pol = json.load(open(ruta))
+titulo = 'solo_streaming'
+if not any((b.get('condition') or {}).get('title') == titulo for b in pol.get('bindings', [])):
+    pol.setdefault('bindings', []).append({
+        'role': 'roles/storage.objectAdmin', 'members': [f'serviceAccount:{sa}'],
+        'condition': {'title': titulo,
+                      'expression': f'resource.name.startsWith("projects/_/buckets/{bucket}/objects/streaming/")'}})
+pol['version'] = 3
+json.dump(pol, open(ruta, 'w'))
+PY
+  gcloud storage buckets set-iam-policy "gs://$BUCKET_RAW" "$pol" >/dev/null
+  rm -f "$pol"
   # Airflow lanza los batches de Spark como lumina-spark
   gcloud iam service-accounts add-iam-policy-binding "$SA_SPARK" --project "$PROJECT_ID" \
     --member "serviceAccount:$SA_EMAIL" --role roles/iam.serviceAccountUser >/dev/null
@@ -87,6 +106,13 @@ case "${1:-}" in
         --member "serviceAccount:service-$numero@compute-system.iam.gserviceaccount.com" \
         --role roles/compute.instanceAdmin.v1 >/dev/null
     fi
+
+    # Kafka nace vacío en cada VM: los checkpoints del streaming guardan offsets del Kafka anterior y Spark
+    # se detendría ("offset was changed ... some data may have been missed"). Se reinician junto con el
+    # registro de commits de la copia a bronze; los Parquet ya escritos se conservan y silver deduplica.
+    log "Reiniciando checkpoints del streaming (el Kafka de la VM nueva empieza en el offset 0)"
+    gcloud storage rm -r "gs://$BUCKET_CURATED/checkpoints/streaming" --quiet 2>/dev/null || true
+    gcloud storage rm -r "gs://$BUCKET_RAW/streaming/lecturas/_spark_metadata" --quiet 2>/dev/null || true
 
     log "Subiendo código y creando $OPS_VM con perfiles '$PERFILES' (queda ENCENDIDA)"
     subir_bundle
