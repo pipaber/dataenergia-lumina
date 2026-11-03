@@ -7,6 +7,7 @@ require_config
 cat <<EOF
 Se borrará en el proyecto $PROJECT_ID:
   - VMs: $INGEST_VM, $OPS_VM (y sus discos)
+  - Servicio de Cloud Run lumina-api y sus imágenes
   - Buckets: gs://$BUCKET_RAW, gs://$BUCKET_CURATED y los dataproc-staging/temp (con todo su contenido)
   - Datasets BigQuery: $BQ_DATASETS (con todas sus tablas)
   - Secreto: $KAGGLE_SECRET
@@ -20,6 +21,9 @@ for vm in "$INGEST_VM" "$OPS_VM"; do
   gcloud compute instances delete "$vm" --zone "$ZONE" --project "$PROJECT_ID" --quiet 2>/dev/null \
     && echo "VM $vm borrada" || true
 done
+
+gcloud run services delete lumina-api --region "$REGION" --project "$PROJECT_ID" --quiet 2>/dev/null   && echo "Servicio lumina-api borrado" || true
+gcloud artifacts repositories delete cloud-run-source-deploy --location "$REGION" --project "$PROJECT_ID" --quiet 2>/dev/null   && echo "Imágenes de Cloud Run borradas" || true
 
 # Incluye los buckets de staging/temp que Dataproc Serverless crea solo en $REGION.
 # OJO: los dataproc-*-us-east1-* del proyecto son de labs anteriores (sep-2026) y NO se tocan.

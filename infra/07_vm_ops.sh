@@ -6,6 +6,7 @@
 #   bash infra/07_vm_ops.sh crear [perfiles]       # crea y ENCIENDE la VM; perfiles: streaming (def.), airflow o streaming,airflow
 #   bash infra/07_vm_ops.sh perfiles <lista>       # cambia los perfiles activos en la VM encendida
 #   bash infra/07_vm_ops.sh desplegar              # sube el código y reinicia el stack
+#   bash infra/07_vm_ops.sh refresco <horas>       # cada cuánto el streaming recarga reglas (def. 24; demo: 0.05)
 #   bash infra/07_vm_ops.sh iniciar | detener      # enciende / apaga (el disco cuesta ~US$3/mes)
 #   bash infra/07_vm_ops.sh destruir               # BORRA VM y disco (costo 0 entre demos)
 #   bash infra/07_vm_ops.sh replay [args]          # p. ej. --dias 2 --anomalias 20
@@ -104,6 +105,12 @@ case "${1:-}" in
   perfiles)
     [[ -n "${2:-}" ]] || die "Uso: 07_vm_ops.sh perfiles streaming|airflow|streaming,airflow"
     gcloud compute instances add-metadata "$OPS_VM" "${VM[@]}" --metadata "^;^perfiles=$2"
+    ssh_vm "sudo google_metadata_script_runner startup"
+    ;;
+
+  refresco)
+    [[ -n "${2:-}" ]] || die "Uso: 07_vm_ops.sh refresco <horas>"
+    gcloud compute instances add-metadata "$OPS_VM" "${VM[@]}" --metadata "refresco-horas=$2"
     ssh_vm "sudo google_metadata_script_runner startup"
     ;;
 

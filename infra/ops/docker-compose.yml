@@ -93,7 +93,7 @@ services:
       - --proyecto=${PROYECTO}
       - --checkpoints=gs://${BUCKET_CURATED}/checkpoints/streaming
       - --bronze=gs://${BUCKET_RAW}/streaming/lecturas      # sincronización 1
-      - --refresco-horas=24                                # sincronización 2
+      - --refresco-horas=${REFRESCO_HORAS:-24}             # sincronización 2
     volumes:
       - ivy-cache:/ivy
     restart: unless-stopped

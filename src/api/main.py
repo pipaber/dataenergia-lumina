@@ -22,7 +22,7 @@ CUR, OLAP, ML = (f"`{PROYECTO}.{ds}" for ds in ("lumina_curated", "lumina_olap",
 
 app = FastAPI(
     title="API Lumina Energía",
-    description="Consumo, carga por zona, pronóstico D+1, alertas y tarifas. Datos: Smart Meters in London "
+    description="Consumo, carga por zona, pronóstico D+1, alertas, tarifas y mantenimiento predictivo. Datos: Smart Meters in London "
                 "(2011-2014), seudonimizados. Proyecto del curso de Big Data, UTEC.",
     version="1.0.0",
 )
@@ -118,6 +118,27 @@ def alertas(tipo: str | None = Query(None, examples=["consumo_anomalo"]), zona: 
         WHERE (@tipo = '' OR tipo = @tipo) AND (@zona < 0 OR zona = @zona)
         ORDER BY ts_evento DESC LIMIT @limite""",
         tipo=tipo or "", zona=-1 if zona is None else zona, limite=limite)
+
+
+@app.get("/mantenimiento/medidores")
+def medidores_en_riesgo(zona: int | None = None, limite: int = Query(20, ge=1, le=200)):
+    """Medidores con mayor probabilidad de fallar el mes siguiente (modelo de BigQuery ML)."""
+    return consultar(f"""
+        SELECT ranking, lclid, zona, transformador, prob_falla, fallo_en_enero, dias_malos_enero,
+               dias_cero_enero, dias_malos_3m, diagnostico_historico
+        FROM {ML}.ranking_medidores`
+        WHERE (@zona < 0 OR zona = @zona)
+        ORDER BY ranking LIMIT @limite""", zona=-1 if zona is None else zona, limite=limite)
+
+
+@app.get("/mantenimiento/transformadores")
+def transformadores_sobrecargados(limite: int = Query(20, ge=1, le=112)):
+    """Transformadores con más días sobre la capacidad de referencia en hora punta, en dos inviernos."""
+    return consultar(f"""
+        SELECT ranking, zona, transformador, dias_sobre_12_13, dias_sobre_13_14, sobrecarga_recurrente,
+               crecimiento_relativo_pct, max_kw_por_medidor_13_14, capacidad_ref_kw_por_medidor
+        FROM {ML}.ranking_transformadores`
+        ORDER BY ranking LIMIT @limite""", limite=limite)
 
 
 @app.get("/segmentos/consumo")

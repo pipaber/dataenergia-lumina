@@ -14,6 +14,7 @@ BUCKET_RAW="$(md bucket-raw || echo "$PROYECTO-lumina-raw")"
 REGION="$(md region || echo us-central1)"
 SA_SPARK="$(md sa-spark || echo "lumina-spark@$PROYECTO.iam.gserviceaccount.com")"
 PERFILES="$(md perfiles || echo streaming)"
+REFRESCO_HORAS="$(md refresco-horas || echo 24)"   # sincronización 2; en demos, minutos
 
 if ! command -v docker >/dev/null; then
   export DEBIAN_FRONTEND=noninteractive
@@ -43,6 +44,7 @@ REGION=$REGION
 BUCKET_RAW=$BUCKET_RAW
 BUCKET_CURATED=$BUCKET_CURATED
 SA_SPARK=$SA_SPARK
+REFRESCO_HORAS=$REFRESCO_HORAS
 AIRFLOW_ADMIN_PASSWORD=$(cat "$CLAVE")
 EOF
 chmod 600 /opt/lumina/infra/ops/.env
