@@ -9,7 +9,7 @@ Demo en vivo de unos 12 minutos para la sustentación del 21 de noviembre. Muest
 | 1 | `bash infra/07_vm_ops.sh crear streaming,airflow` | Enciende la VM con Kafka, Spark Streaming y Airflow (~8 min). Reinicia los *checkpoints* porque el Kafka es nuevo |
 | 2 | `bash infra/07_vm_ops.sh refresco 0.05` | El streaming recarga las reglas del batch cada 3 min, para que se vea en la demo |
 | 3 | `bash infra/07_vm_ops.sh logs spark-streaming` | Esperar la línea `[lumina] 5 consultas activas` |
-| 4 | Abrir en el navegador: la API (`/docs`), el tablero de Looker Studio y la consola de BigQuery | Tener las pestañas listas |
+| 4 | Abrir en el navegador: la consola interna (https://lumina-api-csascndwia-uc.a.run.app/consola), la app del cliente (https://lumina-api-csascndwia-uc.a.run.app/app, en vista de celular), la API (`/docs`) y la consola de BigQuery | Tener las pestañas listas |
 | 5 | `bash infra/07_vm_ops.sh tunel` en otra terminal | Airflow en `http://localhost:8080` |
 
 Costo de la demo: ≈ US$0.15 de VM por hora, más ≈ US$0.3 si se corre el DAG.
@@ -24,8 +24,8 @@ Costo de la demo: ≈ US$0.15 de VM por hora, más ≈ US$0.3 si se corre el DAG
 | 5–6 | **El batch enseña al streaming** | `bash infra/07_vm_ops.sh logs spark-streaming` (línea `reglas del batch cargadas`) | Los umbrales que usa el streaming vienen del batch y se recargan solos (sincronización 2) |
 | 6–7 | **Lo de hoy pasa a la historia** | `gcloud storage ls gs://<proyecto>-lumina-raw/streaming/lecturas/` | Cada lectura en vivo también se guarda en el lake; el batch de la noche la vuelve definitiva (sincronización 1) |
 | 7–8 | **La orquestación** | Airflow en `http://localhost:8080`: vista de grafo de `lumina_batch_diario` | Sensor, Spark silver y gold, 13 cargas a BigQuery y 3 controles de calidad |
-| 8–10 | **La API** | `/docs` → `/alertas`, `/zonas/3/carga?fecha=2013-01-16`, `/zonas/3/pronostico?fecha=2014-01-15`, `/mantenimiento/transformadores` | Lo que consumen la app y otros sistemas, con una sola vista que une historia y hoy |
-| 10–11 | **El tablero** | Looker Studio: páginas de operación, tarifa y mantenimiento | La tarifa dinámica ahorra 2.74 % y recorta 5.6 % la punta; el pronóstico se equivoca 4.4 % |
+| 8–9 | **La consola interna** | `/consola`: centro de control (16 de enero, Z3-T07 caído), compras y mantenimiento | Cada rol abre su vista y ve en una frase lo que tiene que decidir |
+| 9–11 | **La app del cliente** | `/app` con el hogar MAC004436: Mañana → Factura → Avisos; luego MAC004400 (consumo inusual) | Mañana el precio es Alto de 17:00 a 23:00: si el hogar mueve 3.4 kWh, ahorra £2.17. Así la tarifa dinámica recorta 5.6 % la punta |
 | 11–12 | Cierre | Diapositiva de costos | Todo esto costó ≈ US$2.3 de los US$300; en producción, ≈ US$36 k al año frente a ≈ US$9.6 M de beneficio |
 
 ## Si algo falla en vivo

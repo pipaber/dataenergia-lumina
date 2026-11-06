@@ -66,7 +66,9 @@ Detalle y resultados → [05_analitica.md](05_analitica.md)
 - ✅ Tarifa dinámica vs. plana: −2.74 % de factura, 86 % de hogares ToU ahorran; −5.6 % de consumo en eventos Altos contra control → `infra/11_tarifas.sh`
 - ✅ Pronóstico D+1 por zona (MAPE 4.4 % vs. 6.9 % ingenuo) y por hogar (WAPE 18.5 % vs. 21.3 %), ≤ US$0.42 → `infra/10_pronostico.sh`
 - ✅ Mantenimiento predictivo: modelo de fallas (AUC 0.82; con el 5 % de inspecciones, 62 % de las fallas) y 14/112 transformadores con sobrecarga recurrente → `infra/12_mantenimiento.sh`
-- 🟡 Tablero en Looker Studio: guía lista → [06_guia_looker_studio.md](06_guia_looker_studio.md); falta armarlo (alumno)
+- ✅ App del cliente en Cloud Run → https://lumina-api-csascndwia-uc.a.run.app/app (un objetivo: pagar menos; 4 pestañas)
+- ✅ Consola interna en Cloud Run → https://lumina-api-csascndwia-uc.a.run.app/consola (6 vistas, una por rol)
+- ⬜ Opcional: tablero en Looker Studio con la [guía](06_guia_looker_studio.md); la consola ya cubre ese uso
 
 ### Entrega 3 · Exposición y demo
 - ✅ API REST publicada en Cloud Run (pública, máx. 1 instancia): https://lumina-api-csascndwia-uc.a.run.app/docs → `infra/13_api_cloud_run.sh`

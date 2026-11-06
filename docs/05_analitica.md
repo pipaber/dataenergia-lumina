@@ -131,7 +131,31 @@ En producción, la capacidad de referencia sería la potencia nominal de cada tr
 
 **Publicada en <https://lumina-api-csascndwia-uc.a.run.app/docs>** (documentación interactiva). Para la demo es pública, con un máximo de 1 instancia y una cuenta de servicio que solo puede leer los datasets que usa. Las rutas probadas responden en 1–2 s. Se borra con `bash infra/13_api_cloud_run.sh borrar`.
 
+## Las dos aplicaciones
+
+La API sirve también dos aplicaciones web, una por tipo de usuario. Cada una tiene un solo objetivo y usa solo los outputs que su usuario necesita.
+
+| Aplicación | Dirección | Usuario | Objetivo | Outputs que usa |
+|---|---|---|---|---|
+| **App del cliente** | [https://lumina-api-csascndwia-uc.a.run.app/app](https://lumina-api-csascndwia-uc.a.run.app/app) | El hogar (se descarga en el celular) | Pagar menos usando la luz fuera de las horas de precio Alto | Pronóstico del hogar · factura con tarifa dinámica frente a plana · avisos de consumo anómalo y de medidor sin señal · precios de mañana |
+| **Consola interna** | [https://lumina-api-csascndwia-uc.a.run.app/consola](https://lumina-api-csascndwia-uc.a.run.app/consola) | El personal de Lumina, con una vista por rol | Operar, comprar energía, mantener y planificar la red | Picos por zona · alertas de la red · pronóstico por zona · ranking de medidores y transformadores · calidad · respuesta a la tarifa · segmentos · indicadores |
+
+**App del cliente.** Su "hoy" es el viernes 18 de enero de 2013, en plena ola de frío, y tiene cuatro pestañas:
+
+- **Mañana:** los precios de mañana como un horario y cuánto ahorra moviendo el consumo de las horas de precio Alto. El total del día lo pronostica el modelo y se reparte por hora según el perfil del hogar.
+- **Consumo:** hoy frente a su promedio, las últimas dos semanas y el día de ayer con el precio de cada media hora.
+- **Factura:** lo que lleva pagado en el mes con tarifa dinámica y con plana.
+- **Avisos:** consumo inusual, medidor sin señal y aviso de precio.
+
+**Consola interna.** Seis vistas, una por rol: centro de control, compras de energía, mantenimiento, planificación de red, comercial y tarifas, y gerencia. Cada vista abre con la respuesta a la pregunta de ese rol, en una frase, y dice qué período muestra:
+
+- el centro de control ve la reproducción de la ola de frío de enero de 2013;
+- compras ve los pronósticos de enero de 2014;
+- planificación compara los inviernos 2012-13 y 2013-14.
+
+Las rutas que usan las dos aplicaciones son de solo lectura y tienen el mismo tope de 2 GiB por consulta. En producción, la app del cliente tomaría el hogar del token del inicio de sesión de Lumina, y no de la dirección.
+
 ## Pendiente de esta fase
 
-- Armar el tablero en Looker Studio con la [guía](06_guia_looker_studio.md).
 - Ensayar la demo con el [guion](08_guion_demo.md).
+- Opcional: armar el tablero en Looker Studio con la [guía](06_guia_looker_studio.md); la consola interna ya cubre ese uso.

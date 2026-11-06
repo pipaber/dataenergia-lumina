@@ -1,0 +1,448 @@
+<title>Lumina Consola</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* Consola interna: lista de roles a la izquierda, una vista por rol que abre con la respuesta en una frase,
+   tablas con líneas finas y cifras alineadas. Mismo lenguaje que la app del cliente. */
+:root {
+  --fondo: #F4F5F2; --papel: #FBFBF9; --tinta: #1C211E; --tenue: #5D6660; --linea: #DADDD6; --linea-fuerte: #1C211E;
+  --marca: #1F4A63; --sel: #E7EAE4;
+  --alto: #B8432C; --normal: #687883; --bajo: #2D7451; --aviso: #9A6400;
+  --grid: rgba(28, 33, 30, 0.07);
+  --letra: 'Public Sans', 'Segoe UI', Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fondo: #0E1211; --papel: #141917; --tinta: #E6EAE5; --tenue: #9AA49D; --linea: #2A322E; --linea-fuerte: #E6EAE5;
+  --marca: #8BB8D3; --sel: #1E2522; --alto: #EE8A71; --normal: #A3B1BA; --bajo: #6CC496; --aviso: #E5A84A;
+  --grid: rgba(230, 234, 229, 0.07); color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --fondo: #0E1211; --papel: #141917; --tinta: #E6EAE5; --tenue: #9AA49D; --linea: #2A322E; --linea-fuerte: #E6EAE5;
+  --marca: #8BB8D3; --sel: #1E2522; --alto: #EE8A71; --normal: #A3B1BA; --bajo: #6CC496; --aviso: #E5A84A;
+  --grid: rgba(230, 234, 229, 0.07); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--fondo); color: var(--tinta); font-family: var(--letra); font-size: 15px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.marco { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 48px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 0 40px; }
+@media (max-width: 900px) { .marco { grid-template-columns: 1fr; } }
+
+.cabeza { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 16px; padding: 18px 0 14px; border-bottom: 2px solid var(--linea-fuerte); }
+.cabeza b { color: var(--marca); font-size: 17px; font-weight: 700; }
+.cabeza b span { color: var(--tinta); font-weight: 500; }
+.cabeza small { color: var(--tenue); font-size: 13px; }
+
+/* roles */
+.roles { padding-top: 24px; }
+.roles h2 { font-size: 13px; color: var(--tenue); font-weight: 500; margin: 0 0 8px; }
+.roles ol { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--linea); }
+.roles a { display: block; padding: 10px 12px; border-bottom: 1px solid var(--linea); color: var(--tinta); text-decoration: none; }
+.roles a span { display: block; font-size: 13px; color: var(--tenue); }
+.roles a[aria-current="page"] { background: var(--sel); font-weight: 700; box-shadow: inset 3px 0 0 var(--tinta); }
+.roles a:hover { background: var(--sel); }
+@media (max-width: 900px) {
+  .roles { padding-top: 12px; }
+  .roles h2 { display: none; }
+  .roles ol { display: flex; overflow-x: auto; border-top: 0; border-bottom: 1px solid var(--linea); scrollbar-width: none; }
+  .roles a { white-space: nowrap; border-bottom: 2px solid transparent; padding: 8px 12px; }
+  .roles a span { display: none; }
+  .roles a[aria-current="page"] { background: none; box-shadow: none; border-bottom-color: var(--tinta); }
+}
+
+/* vista */
+.vista { padding-top: 24px; display: grid; gap: 32px; align-content: start; min-width: 0; }
+.rol { font-size: 13px; color: var(--tenue); }
+h1 { font-size: clamp(24px, 2.6vw, 30px); font-weight: 700; line-height: 1.2; margin: 4px 0 0; letter-spacing: -0.01em; max-width: 30em; text-wrap: balance; }
+.bajada { margin: 8px 0 0; color: var(--tenue); max-width: 64ch; }
+h2 { font-size: 16px; font-weight: 700; margin: 0 0 4px; }
+.explica { color: var(--tenue); font-size: 14px; margin: 0 0 10px; max-width: 70ch; }
+.nota { color: var(--tenue); font-size: 13px; margin: 8px 0 0; max-width: 70ch; }
+.dos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 32px; }
+
+.dias { display: flex; flex-wrap: wrap; gap: 0; border: 1px solid var(--linea); width: max-content; max-width: 100%; }
+.dias button { font: 500 14px var(--letra); color: var(--tenue); background: var(--papel); border: 0; border-right: 1px solid var(--linea); padding: 7px 12px; cursor: pointer; }
+.dias button:last-child { border-right: 0; }
+.dias button[aria-pressed="true"] { background: var(--tinta); color: var(--papel); }
+.dias button:focus-visible, .roles a:focus-visible, tr[tabindex]:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+
+.tabla { overflow-x: auto; border-top: 2px solid var(--linea-fuerte); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font-weight: 500; color: var(--tenue); font-size: 13px; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--linea); white-space: nowrap; }
+td { padding: 9px 10px 9px 0; border-bottom: 1px solid var(--linea); vertical-align: middle; }
+th.n, td.n { text-align: right; }
+td.id { font-weight: 600; white-space: nowrap; }
+tr[tabindex] { cursor: pointer; }
+tr[tabindex]:hover td { background: var(--sel); }
+tr.elegida td { background: var(--sel); font-weight: 600; }
+.alto { color: var(--alto); } .bajo { color: var(--bajo); } .aviso { color: var(--aviso); } .tenue { color: var(--tenue); }
+.estado { font-weight: 600; white-space: nowrap; }
+.estado::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; margin-right: 6px; transform: translateY(-1px); }
+
+/* línea de tiempo del día por zona: 48 medias horas */
+.dia48 { display: grid; grid-template-columns: repeat(48, 1fr); gap: 1px; min-width: 240px; height: 14px; }
+.dia48 i { display: block; background: var(--linea); }
+.dia48 i.p { background: var(--alto); }
+.dia48 i.c { background: var(--normal); opacity: 0.55; }
+.regla { display: grid; grid-template-columns: repeat(4, 1fr); font-size: 11px; color: var(--tenue); min-width: 240px; }
+
+.barra { display: flex; align-items: center; gap: 8px; min-width: 140px; }
+.barra span { flex: 1; height: 8px; background: var(--linea); }
+.barra span b { display: block; height: 100%; background: var(--tinta); }
+.barra.alto span b { background: var(--alto); }
+.barra em { font-style: normal; min-width: 3em; text-align: right; }
+
+.grafico { position: relative; height: 260px; min-width: 0; }
+.leyenda { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--tenue); margin-top: 6px; }
+.leyenda span::before { content: ""; display: inline-block; width: 14px; height: 2px; background: var(--c); margin-right: 6px; vertical-align: middle; }
+.leyenda span.punteada::before { background: none; border-top: 2px dashed var(--c); height: 0; }
+
+.indicadores { border-top: 2px solid var(--linea-fuerte); }
+.indicador { display: grid; grid-template-columns: minmax(0, 1fr) 9em 12em; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--linea); align-items: baseline; }
+.indicador b { font-weight: 700; text-align: right; }
+.indicador span:last-child { color: var(--tenue); font-size: 13px; }
+@media (max-width: 600px) { .indicador { grid-template-columns: 1fr auto; } .indicador span:last-child { grid-column: 1 / -1; } }
+.error { color: var(--alto); }
+.pie { grid-column: 1 / -1; margin-top: 40px; padding-top: 12px; border-top: 1px solid var(--linea); font-size: 12px; color: var(--tenue); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+</style>
+
+<div class="marco">
+  <header class="cabeza">
+    <b>Lumina <span>· Consola interna</span></b>
+    <small id="modo">Vista previa con datos reales</small>
+  </header>
+
+  <nav class="roles" aria-label="Rol">
+    <h2>Abrir como</h2>
+    <ol>
+      <li><a href="#control">Centro de control<span>Picos y fallas de la red</span></a></li>
+      <li><a href="#compras">Compras de energía<span>Plan del día siguiente</span></a></li>
+      <li><a href="#mantenimiento">Mantenimiento<span>Qué medidores revisar</span></a></li>
+      <li><a href="#planificacion">Planificación de red<span>Dónde ampliar capacidad</span></a></li>
+      <li><a href="#comercial">Comercial y tarifas<span>Respuesta al precio</span></a></li>
+      <li><a href="#gerencia">Gerencia<span>Indicadores del negocio</span></a></li>
+    </ol>
+  </nav>
+
+  <main class="vista" id="vista"></main>
+
+  <footer class="pie">
+    <span>Datos: Smart Meters in London (2011–2014), seudonimizados. Zonas y transformadores sintéticos.</span>
+    <span>BigQuery (gold, lumina_olap, lumina_ml) a través de la API de Lumina.</span>
+  </footer>
+</div>
+
+<script>
+// Vista previa: la página trae una copia de las respuestas de la API. Publicada en Cloud Run, consulta la API en vivo.
+const INSTANTANEA = /*DATOS*/null;
+
+async function api(ruta) {
+  if (INSTANTANEA) {
+    if (!(ruta in INSTANTANEA)) throw new Error('Esta vista previa no incluye ' + ruta);
+    return INSTANTANEA[ruta];
+  }
+  const r = await fetch(ruta);
+  if (!r.ok) throw new Error('La API respondió ' + r.status + ' al pedir ' + ruta + '.');
+  return r.json();
+}
+
+const $ = (s) => document.querySelector(s);
+const color = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const num = (x, d = 1) => Number(x).toLocaleString('es-PE', { minimumFractionDigits: d, maximumFractionDigits: d });
+const ent = (x) => Math.round(Number(x)).toLocaleString('es-PE');
+const signo = (x, d = 1) => (x > 0 ? '+' : x < 0 ? '−' : '') + num(Math.abs(x), d) + ' %';
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const hhmm = (i) => String(Math.floor(i / 2)).padStart(2, '0') + ':' + (i % 2 ? '30' : '00');
+const diaCorto = (iso) => new Date(iso + 'T12:00:00Z').toLocaleDateString('es-PE', { weekday: 'short', day: 'numeric', timeZone: 'UTC' });
+const diaLargo = (iso) => new Date(iso + 'T12:00:00Z').toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+const horaUTC = (ts) => new Date(ts).toISOString().slice(11, 16);
+const indice = (r) => r.hora_local * 2 + (horaUTC(r.ts_utc).endsWith('30') ? 1 : 0);
+const encabezado = (rol, titulo, bajada) => `<div><span class="rol">${rol}</span><h1>${titulo}</h1>${bajada ? `<p class="bajada">${bajada}</p>` : ''}</div>`;
+const barra = (v, max, clase = '', texto = ent(v)) => `<div class="barra ${clase}"><span><b style="width:${max ? (v / max) * 100 : 0}%"></b></span><em>${texto}</em></div>`;
+function botonesDias(dias, activo, alElegir, rotulo = diaCorto) {
+  const html = `<div class="dias" role="group" aria-label="Día">${dias.map((d) => `<button type="button" data-d="${d}" aria-pressed="${d === activo}">${rotulo(d)}</button>`).join('')}</div>`;
+  setTimeout(() => document.querySelector('.dias').onclick = (e) => { const b = e.target.closest('button'); if (b) alElegir(b.dataset.d); });
+  return html;
+}
+const graficos = {};
+function grafico(id, config) {
+  graficos[id]?.destroy();
+  Chart.defaults.font.family = "'Public Sans', 'Segoe UI', Arial, sans-serif";
+  Chart.defaults.font.size = 12;
+  Chart.defaults.color = color('--tenue');
+  graficos[id] = new Chart($(id), config);
+}
+
+// ---------------------------------------------------------------- centro de control
+const SEMANA = ['2013-01-14', '2013-01-15', '2013-01-16', '2013-01-17', '2013-01-18', '2013-01-19', '2013-01-20'];
+let diaControl = '2013-01-16';
+async function vistaControl() {
+  const [carga, anom, silencio] = await Promise.all([
+    api(`/red/carga?fecha=${diaControl}`),
+    api('/alertas?tipo=consumo_anomalo&desde=2013-01-14&hasta=2013-01-20&limite=500'),
+    api('/alertas?tipo=medidor_silencioso&desde=2013-01-14&hasta=2013-01-20&limite=500'),
+  ]);
+  const zonas = Array.from({ length: 8 }, (_, i) => {
+    const filas = carga.filter((r) => r.zona === i + 1);
+    const picos = filas.filter((r) => r.es_pico);
+    const maxRel = Math.max(...filas.map((r) => r.kw_por_medidor / r.kw_p95));
+    const tira = Array(48).fill('');
+    for (const r of filas) tira[indice(r)] = r.es_pico ? 'p' : r.kw_por_medidor / r.kw_p95 > 0.9 ? 'c' : '';
+    return { zona: i + 1, picos: picos.length, desde: picos.length ? hhmm(Math.min(...picos.map(indice))) : null,
+      hasta: picos.length ? hhmm(Math.max(...picos.map(indice)) + 1) : null, maxRel, tira };
+  });
+  const delDia = (a) => a.ts_evento.slice(0, 10) === diaControl;
+  const sinSenal = Object.entries(silencio.filter(delDia).reduce((g, a) => {
+    (g[a.transformador] ??= { n: new Set(), desde: a.ts_evento }).n.add(a.lclid);
+    if (a.ts_evento < g[a.transformador].desde) g[a.transformador].desde = a.ts_evento;
+    return g;
+  }, {})).map(([t, v]) => ({ t, n: v.n.size, desde: v.desde })).sort((a, b) => b.n - a.n);
+  const anomDia = anom.filter(delDia).map((a) => ({ ...a, veces: a.valor / a.umbral })).sort((a, b) => b.veces - a.veces);
+  const conPico = zonas.filter((z) => z.picos);
+  const caido = sinSenal.find((s) => s.n >= 5);
+  const titulo = `${conPico.length ? `${conPico.length === 8 ? 'Las 8 zonas tuvieron' : conPico.length + ' zonas tuvieron'} pico en hora punta` : 'Ninguna zona tuvo pico'}${caido ? ` y el transformador ${caido.t} perdió ${caido.n} medidores` : ''}`;
+
+  $('#vista').innerHTML = `
+    ${encabezado('Centro de control', titulo, `Lo que el streaming detectó el ${diaLargo(diaControl)}, durante la reproducción de la ola de frío de enero de 2013.`)}
+    ${botonesDias(SEMANA, diaControl, (d) => { diaControl = d; vistaControl(); })}
+    <section>
+      <h2>Carga por zona</h2>
+      <p class="explica">Pico: la carga por medidor supera el p95 histórico de la zona (lo que se supera solo el 5 % de los días parecidos), entre las 17 y las 21 h.</p>
+      <div class="tabla"><table>
+        <tr><th>Zona</th><th>Pico</th><th class="n">Máximo frente al p95</th><th>00:00 → 24:00</th></tr>
+        ${zonas.map((z) => `<tr><td class="id">Z${z.zona}</td>
+          <td>${z.picos ? `<span class="estado alto">${z.desde}–${z.hasta}</span>` : '<span class="tenue">Sin pico</span>'}</td>
+          <td class="n ${z.maxRel > 1 ? 'alto' : ''}">${signo((z.maxRel - 1) * 100, 0)}</td>
+          <td><div class="dia48" aria-label="Medias horas del día">${z.tira.map((c) => `<i class="${c}"></i>`).join('')}</div></td></tr>`).join('')}
+        <tr><td></td><td></td><td></td><td><div class="regla"><span>00</span><span>06</span><span>12</span><span>18</span></div></td></tr>
+      </table></div>
+      <div class="leyenda"><span style="--c:var(--alto)">Pico</span><span style="--c:var(--normal)">Sobre el 90 % del p95</span></div>
+    </section>
+    <div class="dos">
+      <section>
+        <h2>Medidores sin señal</h2>
+        <p class="explica">Dejaron de enviar lecturas por 2 horas. Muchos en un mismo transformador indican un concentrador caído.</p>
+        <div class="tabla"><table>
+          <tr><th>Transformador</th><th class="n">Medidores</th><th>Desde</th><th>Diagnóstico</th></tr>
+          ${sinSenal.length ? sinSenal.map((s) => `<tr><td class="id">${esc(s.t)}</td><td class="n">${s.n}</td><td>${horaUTC(s.desde)}</td>
+            <td class="estado ${s.n >= 5 ? 'alto' : 'aviso'}">${s.n >= 5 ? 'Concentrador caído' : 'Medidor individual'}</td></tr>`).join('')
+            : '<tr><td colspan="4" class="tenue">Todos los medidores reportaron este día.</td></tr>'}
+        </table></div>
+      </section>
+      <section>
+        <h2>Consumos anómalos</h2>
+        <p class="explica">${anomDia.length} lecturas por encima del umbral de su propio hogar. Las 12 más altas:</p>
+        <div class="tabla"><table>
+          <tr><th>Hora</th><th>Medidor</th><th>Transformador</th><th class="n">kWh</th><th class="n">Veces el umbral</th></tr>
+          ${anomDia.slice(0, 12).map((a) => `<tr><td>${horaUTC(a.ts_evento)}</td><td class="id">${esc(a.lclid)}</td><td>${esc(a.transformador)}</td>
+            <td class="n">${num(a.valor, 2)}</td><td class="n alto">${num(a.veces, 1)}×</td></tr>`).join('')}
+        </table></div>
+      </section>
+    </div>`;
+}
+
+// ---------------------------------------------------------------- compras de energía
+const SEMANA_PLAN = ['2014-01-13', '2014-01-14', '2014-01-15', '2014-01-16', '2014-01-17', '2014-01-18', '2014-01-19'];
+let diaPlan = '2014-01-13', zonaPlan = 3;
+async function vistaCompras() {
+  const [filas, ind] = await Promise.all([api('/plan/pronostico?desde=2014-01-13&hasta=2014-01-19'), api('/indicadores')]);
+  const delDia = filas.filter((r) => r.fecha === diaPlan);
+  const porZona = Array.from({ length: 8 }, (_, i) => {
+    const f = delDia.filter((r) => r.zona === i + 1);
+    const real = f.reduce((a, r) => a + r.real, 0) / 2, pron = f.reduce((a, r) => a + r.pronostico, 0) / 2;
+    const em = f.reduce((a, r) => a + Math.abs(r.pronostico - r.real), 0) / 2 / real * 100;
+    const ei = f.reduce((a, r) => a + Math.abs(r.ingenuo - r.real), 0) / 2 / real * 100;
+    return { zona: i + 1, real, pron, em, ei };
+  });
+  const total = (k) => porZona.reduce((a, z) => a + z[k], 0) / 8;
+  const errDia = Math.abs(total('pron') - total('real')) / total('real') * 100;
+  const zm = ind.pronostico.find((r) => r.modelo.startsWith('zona') && r.metodo.startsWith('boosted'));
+  const zi = ind.pronostico.find((r) => r.modelo.startsWith('zona') && r.metodo.startsWith('ingenuo'));
+  const MEDIDORES = 8e6;
+
+  $('#vista').innerHTML = `
+    ${encabezado('Compras de energía', `Para el ${diaLargo(diaPlan)} el plan pidió ${num(total('pron'), 2)} kWh por medidor y se consumieron ${num(total('real'), 2)}`,
+      `Pronóstico hecho la víspera, en enero de 2014, meses que el modelo no vio al entrenar. Proyectado a 8 millones de medidores: ${ent(total('pron') * MEDIDORES / 1000)} MWh pedidos frente a ${ent(total('real') * MEDIDORES / 1000)} MWh consumidos (${num(errDia, 1)} % de diferencia).`)}
+    ${botonesDias(SEMANA_PLAN, diaPlan, (d) => { diaPlan = d; vistaCompras(); })}
+    <section>
+      <h2>Plan por zona</h2>
+      <p class="explica">Energía del día por medidor. Error: diferencia de cada media hora, sumada, sobre lo consumido. Elige una zona para ver el detalle.</p>
+      <div class="tabla"><table>
+        <tr><th>Zona</th><th class="n">Plan (kWh)</th><th class="n">Real (kWh)</th><th class="n">Error del modelo</th><th class="n">Error de repetir ayer</th></tr>
+        ${porZona.map((z) => `<tr tabindex="0" data-z="${z.zona}" class="${z.zona === zonaPlan ? 'elegida' : ''}"><td class="id">Z${z.zona}</td>
+          <td class="n">${num(z.pron, 2)}</td><td class="n">${num(z.real, 2)}</td>
+          <td class="n ${z.em <= z.ei ? 'bajo' : 'aviso'}">${num(z.em, 1)} %</td><td class="n tenue">${num(z.ei, 1)} %</td></tr>`).join('')}
+      </table></div>
+      <p class="nota">En todo enero y febrero de 2014, el modelo se equivocó ${num(zm.wape_pct, 1)} % frente a ${num(zi.wape_pct, 1)} % de repetir el día anterior.</p>
+    </section>
+    <section>
+      <h2 id="plan-zona"></h2>
+      <div class="grafico"><canvas id="g-plan" aria-label="Plan frente a lo real por media hora"></canvas></div>
+      <div class="leyenda"><span style="--c:var(--tinta)">Real</span><span style="--c:var(--marca)">Plan del modelo</span><span class="punteada" style="--c:var(--tenue)">Repetir ayer</span></div>
+    </section>`;
+  const elegir = (z) => {
+    zonaPlan = z;
+    document.querySelectorAll('tr[data-z]').forEach((t) => t.classList.toggle('elegida', Number(t.dataset.z) === z));
+    const f = delDia.filter((r) => r.zona === z);
+    $('#plan-zona').textContent = `Zona ${z}, cada media hora (kW por medidor)`;
+    grafico('#g-plan', {
+      type: 'line',
+      data: { labels: f.map((r) => hhmm(r.periodo_local - 1)), datasets: [
+        { data: f.map((r) => r.real), borderColor: color('--tinta'), borderWidth: 2, pointRadius: 0, tension: 0.2 },
+        { data: f.map((r) => r.pronostico), borderColor: color('--marca'), borderWidth: 2, pointRadius: 0, tension: 0.2 },
+        { data: f.map((r) => r.ingenuo), borderColor: color('--tenue'), borderDash: [4, 4], borderWidth: 1.5, pointRadius: 0, tension: 0.2 },
+      ] },
+      options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false },
+          tooltip: { callbacks: { label: (c) => ['Real', 'Plan', 'Repetir ayer'][c.datasetIndex] + ': ' + num(c.raw, 3) + ' kW' } } },
+        scales: { x: { grid: { display: false }, border: { color: color('--linea-fuerte') }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } },
+          y: { grid: { color: color('--grid') }, border: { display: false }, ticks: { maxTicksLimit: 5 } } } },
+    });
+  };
+  document.querySelectorAll('tr[data-z]').forEach((t) => {
+    t.onclick = () => elegir(Number(t.dataset.z));
+    t.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); elegir(Number(t.dataset.z)); } };
+  });
+  elegir(zonaPlan);
+}
+
+// ---------------------------------------------------------------- mantenimiento
+async function vistaMantenimiento() {
+  const [medidores, calidad, ind] = await Promise.all([api('/mantenimiento/medidores?limite=20'), api('/calidad/resumen'), api('/indicadores')]);
+  const mod = ind.mantenimiento.find((r) => r.metodo.startsWith('modelo: 5'));
+  const nombres = { ok: 'Sin problemas', huecos_frecuentes: 'Huecos frecuentes', ceros_prolongados: 'Ceros prolongados', cobertura_baja: 'Cobertura baja', sin_datos: 'Sin datos' };
+  const diags = ['ok', 'huecos_frecuentes', 'ceros_prolongados', 'cobertura_baja'];
+  const celda = (z, d) => calidad.find((r) => r.zona === z && r.diagnostico === d)?.medidores ?? 0;
+  const total = calidad.reduce((a, r) => a + r.medidores, 0), malos = total - calidad.filter((r) => r.diagnostico === 'ok').reduce((a, r) => a + r.medidores, 0);
+  $('#vista').innerHTML = `
+    ${encabezado('Mantenimiento', 'Revisa primero estos 20 medidores en febrero de 2014',
+      `El modelo ordena los medidores por su riesgo de fallar el mes siguiente. Revisando cada mes el 5 % de mayor riesgo se encuentra el ${num(mod.cobertura_pct, 0)} % de las fallas.`)}
+    <section>
+      <h2>Lista de inspección</h2>
+      <p class="explica">Falla: al menos 2 días sin datos o con lecturas incompletas, o 2 días en cero. Días malos: lo observado en enero.</p>
+      <div class="tabla"><table>
+        <tr><th class="n">#</th><th>Medidor</th><th>Transformador</th><th>Riesgo de falla</th><th class="n">Días malos en enero</th><th>Historia</th></tr>
+        ${medidores.map((m) => `<tr><td class="n tenue">${m.ranking}</td><td class="id">${esc(m.lclid)}</td><td>${esc(m.transformador)}</td>
+          <td>${barra(m.prob_falla, 1, 'alto', num(m.prob_falla * 100, 0) + ' %')}</td><td class="n">${m.dias_malos_enero}</td>
+          <td class="${m.diagnostico_historico === 'ok' ? 'tenue' : 'aviso'}">${esc(nombres[m.diagnostico_historico] ?? m.diagnostico_historico)}</td></tr>`).join('')}
+      </table></div>
+    </section>
+    <section>
+      <h2>Estado del parque por zona</h2>
+      <p class="explica">${ent(malos)} de ${ent(total)} medidores (${num(malos / total * 100, 1)} %) tienen algún problema en su historia de lecturas.</p>
+      <div class="tabla"><table>
+        <tr><th>Zona</th>${diags.map((d) => `<th class="n">${nombres[d]}</th>`).join('')}</tr>
+        ${Array.from({ length: 8 }, (_, i) => `<tr><td class="id">Z${i + 1}</td>${diags.map((d) => `<td class="n ${d !== 'ok' && celda(i + 1, d) ? 'aviso' : ''}">${celda(i + 1, d)}</td>`).join('')}</tr>`).join('')}
+      </table></div>
+    </section>`;
+}
+
+// ---------------------------------------------------------------- planificación de red
+async function vistaPlanificacion() {
+  const trafos = await api('/mantenimiento/transformadores?limite=112');
+  const recurrentes = trafos.filter((t) => t.sobrecarga_recurrente);
+  const top = trafos.slice(0, 15);
+  const max = Math.max(...top.map((t) => Math.max(t.dias_sobre_12_13, t.dias_sobre_13_14)));
+  const porZona = Object.entries(recurrentes.reduce((g, t) => ((g[t.zona] = (g[t.zona] ?? 0) + 1), g), {})).sort((a, b) => b[1] - a[1]);
+  $('#vista').innerHTML = `
+    ${encabezado('Planificación de red', `${recurrentes.length} de ${trafos.length} transformadores se sobrecargan cada invierno`,
+      `Se sobrecargaron en hora punta en el invierno 2012-13 y otra vez en el 2013-14. La zona con más casos es la ${porZona[0][0]} (${porZona[0][1]} transformadores).`)}
+    <section>
+      <h2>Los 15 transformadores más cargados</h2>
+      <p class="explica">Días de cada invierno en que la carga por medidor superó la capacidad de referencia (${num(trafos[0].capacidad_ref_kw_por_medidor, 2)} kW por medidor). Crecimiento: cómo cambió su punta frente al resto de la red.</p>
+      <div class="tabla"><table>
+        <tr><th class="n">#</th><th>Transformador</th><th>Días en 2012-13</th><th>Días en 2013-14</th><th class="n">Crecimiento</th><th>Diagnóstico</th></tr>
+        ${top.map((t) => `<tr><td class="n tenue">${t.ranking}</td><td class="id">${esc(t.transformador)}</td>
+          <td>${barra(t.dias_sobre_12_13, max)}</td><td>${barra(t.dias_sobre_13_14, max, 'alto')}</td>
+          <td class="n ${t.crecimiento_relativo_pct > 0 ? 'alto' : 'tenue'}">${signo(t.crecimiento_relativo_pct)}</td>
+          <td class="estado ${t.sobrecarga_recurrente ? 'alto' : 'aviso'}">${t.sobrecarga_recurrente ? 'Cada invierno' : 'Un invierno'}</td></tr>`).join('')}
+      </table></div>
+      <p class="nota">Supuesto: el dataset no trae la capacidad nominal de cada transformador; se usa el percentil 99 de la carga en hora punta del invierno 2012-13. En producción, la potencia nominal la entregan las distribuidoras.</p>
+    </section>`;
+}
+
+// ---------------------------------------------------------------- comercial y tarifas
+async function vistaComercial() {
+  const [resp, resumen, seg] = await Promise.all([api('/tarifas/respuesta'), api('/tarifas/resumen'), api('/segmentos/consumo?desde=2013-01-01&hasta=2013-12-31')]);
+  const v = (nivel, tarifa) => (resp.find((r) => r.nivel === nivel && r.tarifa === tarifa).consumo_relativo - 1) * 100;
+  const efecto = v('High', 'ToU') - v('High', 'Std');
+  const tou = resumen.find((r) => r.tarifa === 'ToU'), std = resumen.find((r) => r.tarifa === 'Std');
+  const grupos = [...new Set(seg.map((r) => r.acorn_grupo))];
+  const s = (g, t) => seg.find((r) => r.acorn_grupo === g && r.tarifa === t);
+  $('#vista').innerHTML = `
+    ${encabezado('Comercial y tarifas', `La tarifa dinámica recorta ${num(-efecto, 1)} % el consumo en las horas de precio Alto`,
+      `Año 2013. ${tou.hogares.toLocaleString('es-PE')} hogares tuvieron precios Alto, Normal y Bajo; ${std.hogares.toLocaleString('es-PE')} siguieron con tarifa plana y sirven de comparación.`)}
+    <div class="dos">
+      <section>
+        <h2>Respuesta a los eventos de precio</h2>
+        <p class="explica">Consumo durante el evento frente al consumo normal del mismo hogar, a la misma hora y en el mismo mes.</p>
+        <div class="tabla"><table>
+          <tr><th>Evento</th><th class="n">Tarifa dinámica</th><th class="n">Tarifa plana</th><th class="n">Efecto</th></tr>
+          <tr><td>Precio Alto</td><td class="n">${signo(v('High', 'ToU'))}</td><td class="n tenue">${signo(v('High', 'Std'))}</td><td class="n bajo">${signo(efecto)}</td></tr>
+          <tr><td>Precio Bajo</td><td class="n">${signo(v('Low', 'ToU'))}</td><td class="n tenue">${signo(v('Low', 'Std'))}</td><td class="n">${signo(v('Low', 'ToU') - v('Low', 'Std'))}</td></tr>
+        </table></div>
+      </section>
+      <section>
+        <h2>Factura media de 2013</h2>
+        <p class="explica">Mismo consumo de cada hogar, calculado con los dos precios.</p>
+        <div class="tabla"><table>
+          <tr><th>Tarifa del hogar</th><th class="n">Dinámica</th><th class="n">Plana</th><th class="n">Ahorro</th><th class="n">Hogares que ahorran</th></tr>
+          ${[tou, std].map((r) => `<tr><td>${r.tarifa === 'ToU' ? 'Dinámica' : 'Plana'}</td><td class="n">£${num(r.factura_dinamica_gbp, 2)}</td><td class="n">£${num(r.factura_plana_gbp, 2)}</td>
+            <td class="n bajo">${num(r.ahorro_pct, 2)} %</td><td class="n">${num(r.hogares_que_ahorran_pct, 1)} %</td></tr>`).join('')}
+        </table></div>
+        <p class="nota">La fila «Plana» muestra lo que habrían pagado esos hogares si se pasaran a la tarifa dinámica sin cambiar sus hábitos.</p>
+      </section>
+    </div>
+    <section>
+      <h2>Consumo en hora punta por segmento</h2>
+      <p class="explica">Porcentaje del consumo diario entre las 17 y las 21 h, según el segmento socioeconómico Acorn.</p>
+      <div class="tabla"><table>
+        <tr><th>Segmento</th><th class="n">Con tarifa dinámica</th><th class="n">Con tarifa plana</th><th class="n">Diferencia</th><th class="n">kWh por hogar al día</th></tr>
+        ${grupos.map((g) => { const a = s(g, 'ToU'), b = s(g, 'Std'); return `<tr><td>${esc(g)}</td><td class="n">${a ? num(a.pct_en_punta, 1) + ' %' : '—'}</td>
+          <td class="n tenue">${b ? num(b.pct_en_punta, 1) + ' %' : '—'}</td><td class="n">${a && b ? num(a.pct_en_punta - b.pct_en_punta, 1) + ' pts' : '—'}</td>
+          <td class="n">${b ? num(b.kwh_medio_hogar, 1) : '—'}</td></tr>`; }).join('')}
+      </table></div>
+    </section>`;
+}
+
+// ---------------------------------------------------------------- gerencia
+async function vistaGerencia() {
+  const [ind, resp, resumen] = await Promise.all([api('/indicadores'), api('/tarifas/respuesta'), api('/tarifas/resumen')]);
+  const v = (nivel, tarifa) => (resp.find((r) => r.nivel === nivel && r.tarifa === tarifa).consumo_relativo - 1) * 100;
+  const zm = ind.pronostico.find((r) => r.modelo.startsWith('zona') && r.metodo.startsWith('boosted'));
+  const zi = ind.pronostico.find((r) => r.modelo.startsWith('zona') && r.metodo.startsWith('ingenuo'));
+  const mod = ind.mantenimiento.find((r) => r.metodo.startsWith('modelo: 5'));
+  const tou = resumen.find((r) => r.tarifa === 'ToU');
+  const filas = [
+    ['Recorte del consumo en precio Alto, frente al grupo de control', signo(v('High', 'ToU') - v('High', 'Std')), 'Tarifas 2013'],
+    ['Ahorro en la factura de los clientes con tarifa dinámica', '−' + num(tou.ahorro_pct, 2) + ' %', `ahorra el ${num(tou.hogares_que_ahorran_pct, 0)} % de los hogares`],
+    ['Error del plan de compras del día siguiente', num(zm.wape_pct, 1) + ' %', `repetir ayer: ${num(zi.wape_pct, 1)} %`],
+    ['Fallas de medidores encontradas revisando el 5 % de mayor riesgo', num(mod.cobertura_pct, 0) + ' %', 'jul–dic 2013'],
+    ['Medidores de un concentrador caído detectados', '52 de 52', 'prueba en vivo, 3-nov-2026'],
+    ['Costo de la plataforma por medidor al mes', 'US$0.0004', 'calculadora, con recuperación ante desastres'],
+    ['Beneficio estimado por compras de emergencia evitadas', '≈ US$9.6 M/año', 'supone una prima de US$100/MWh'],
+  ];
+  $('#vista').innerHTML = `
+    ${encabezado('Gerencia', 'La plataforma ya muestra valor medible con datos reales',
+      'Indicadores calculados sobre el prototipo. Los dos últimos son estimaciones de la calculadora de costos y dependen de supuestos.')}
+    <section class="indicadores" aria-label="Indicadores">
+      ${filas.map(([q, val, fuente]) => `<div class="indicador"><span>${q}</span><b>${val}</b><span>${fuente}</span></div>`).join('')}
+    </section>`;
+}
+
+// ---------------------------------------------------------------- navegación
+const vistas = { control: vistaControl, compras: vistaCompras, mantenimiento: vistaMantenimiento, planificacion: vistaPlanificacion, comercial: vistaComercial, gerencia: vistaGerencia };
+async function mostrar() {
+  const nombre = vistas[location.hash.slice(1)] ? location.hash.slice(1) : 'control';
+  document.querySelectorAll('.roles a').forEach((a) => {
+    if (a.getAttribute('href') === '#' + nombre) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
+  try { await vistas[nombre](); }
+  catch (e) { $('#vista').innerHTML = `<p class="error">No se pudieron cargar los datos: ${esc(e.message)}</p>`; }
+}
+window.addEventListener('hashchange', mostrar);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', mostrar);
+new MutationObserver(mostrar).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+$('#modo').textContent = INSTANTANEA ? 'Vista previa con datos reales copiados de la API' : 'En vivo · BigQuery a través de la API';
+mostrar();
+</script>

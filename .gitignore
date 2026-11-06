@@ -54,6 +54,7 @@ docs/entrega1/_e1_*
 site_libs/
 !book/flujo/flujo_lumina.html
 !book/mermaid.html
+!src/api/static/*.html
 
 **/*.quarto_ipynb
 

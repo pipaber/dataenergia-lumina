@@ -1,0 +1,365 @@
+<title>Lumina Hogar</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* Una columna de celular que se lee como un recibo de la empresa de luz: frase que responde, horario de precios,
+   filas con líneas finas y montos alineados. El color solo marca el nivel de precio, siempre con su nombre. */
+:root {
+  --fondo: #E9EBE7; --papel: #F8F9F6; --tinta: #1C211E; --tenue: #5D6660; --linea: #D8DCD5; --linea-fuerte: #1C211E;
+  --marca: #1F4A63;
+  --alto: #B8432C; --normal: #687883; --bajo: #2D7451;
+  --grid: rgba(28, 33, 30, 0.07);
+  --letra: 'Public Sans', 'Segoe UI', Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fondo: #0E1211; --papel: #161B19; --tinta: #E6EAE5; --tenue: #9AA49D; --linea: #2A322E; --linea-fuerte: #E6EAE5;
+  --marca: #8BB8D3; --alto: #EE8A71; --normal: #A3B1BA; --bajo: #6CC496; --grid: rgba(230, 234, 229, 0.07); color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --fondo: #0E1211; --papel: #161B19; --tinta: #E6EAE5; --tenue: #9AA49D; --linea: #2A322E; --linea-fuerte: #E6EAE5;
+  --marca: #8BB8D3; --alto: #EE8A71; --normal: #A3B1BA; --bajo: #6CC496; --grid: rgba(230, 234, 229, 0.07); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--fondo); color: var(--tinta); font-family: var(--letra); font-size: 16px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.escena { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 40px; display: grid; justify-items: center; gap: 12px; }
+.demo { width: 100%; max-width: 400px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; justify-content: space-between; font-size: 13px; color: var(--tenue); }
+.demo select { font: 500 13px var(--letra); color: var(--tinta); background: transparent; border: 0; border-bottom: 1px solid var(--tenue); padding: 2px 0; }
+
+.app { width: 100%; max-width: 400px; background: var(--papel); border: 1px solid var(--linea); display: grid; grid-template-rows: auto 1fr auto; min-height: 780px; }
+@media (max-width: 440px) {
+  .escena { padding-left: 0; padding-right: 0; padding-block: 0; gap: 0; }
+  .demo { padding: 8px 20px; background: var(--papel); border-bottom: 1px solid var(--linea); }
+  .app { border: 0; min-height: 100vh; }
+}
+
+.arriba { padding: 18px 20px 0; display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: var(--tenue); }
+.arriba b { color: var(--marca); font-weight: 700; font-size: 15px; letter-spacing: 0.01em; }
+.contenido { padding: 8px 20px 28px; display: grid; gap: 28px; align-content: start; }
+h1 { font-size: 27px; font-weight: 700; line-height: 1.18; margin: 14px 0 0; letter-spacing: -0.01em; text-wrap: balance; }
+.bajada { margin: 8px 0 0; color: var(--tenue); max-width: 36ch; }
+h2 { font-size: 15px; font-weight: 600; margin: 0 0 8px; }
+p { margin: 0; }
+.nota { font-size: 13px; color: var(--tenue); margin-top: 8px; }
+strong { font-weight: 700; }
+
+/* horario de precios: una fila por tramo */
+.horario { border-top: 2px solid var(--linea-fuerte); }
+.tramo { display: grid; grid-template-columns: 7.5em 1fr auto; gap: 12px; align-items: baseline; padding: 11px 0; border-bottom: 1px solid var(--linea); }
+.tramo .horas { font-weight: 500; }
+.tramo .nivel { display: flex; align-items: baseline; gap: 8px; font-weight: 600; }
+.tramo .nivel::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--c); transform: translateY(-1px); }
+.tramo .precio { color: var(--tenue); font-size: 14px; }
+.tramo.alto { --c: var(--alto); } .tramo.normal { --c: var(--normal); } .tramo.bajo { --c: var(--bajo); }
+.tramo.alto .nivel { color: var(--alto); }
+.franja { display: flex; height: 8px; margin-top: 14px; }
+.franja i { display: block; height: 100%; }
+.reglilla { display: flex; justify-content: space-between; font-size: 12px; color: var(--tenue); margin-top: 4px; }
+
+/* recibo: concepto a la izquierda, monto a la derecha */
+.recibo { border-top: 2px solid var(--linea-fuerte); }
+.renglon { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--linea); }
+.renglon span:last-child { font-weight: 500; white-space: nowrap; }
+.renglon.total { border-bottom: 2px solid var(--linea-fuerte); font-weight: 700; }
+.renglon.total span:last-child { font-weight: 700; }
+.renglon small { display: block; color: var(--tenue); font-size: 13px; font-weight: 400; }
+.positivo { color: var(--bajo); } .negativo { color: var(--alto); }
+
+/* comparación contigo mismo */
+.comparar { display: grid; gap: 8px; }
+.comparar div { display: grid; grid-template-columns: 6.5em 1fr 4.5em; gap: 10px; align-items: center; font-size: 14px; }
+.comparar span:last-child { text-align: right; font-weight: 500; }
+.comparar i { display: block; height: 14px; background: var(--normal); }
+.comparar .hoy i { background: var(--tinta); }
+
+.grafico { position: relative; height: 170px; min-width: 0; }
+.leyenda { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--tenue); margin-top: 6px; }
+.leyenda span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--c); margin-right: 6px; }
+
+/* avisos: lista con fecha a la izquierda */
+.avisos { border-top: 2px solid var(--linea-fuerte); }
+.aviso { display: grid; grid-template-columns: 4.6em 1fr; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--linea); }
+.aviso time { font-size: 13px; color: var(--tenue); line-height: 1.35; }
+.aviso time b { display: block; color: var(--tinta); font-weight: 600; }
+.aviso .que { font-weight: 600; display: block; }
+.aviso .tipo { font-size: 12px; font-weight: 600; letter-spacing: 0.02em; color: var(--c); }
+.aviso.precio { --c: var(--marca); } .aviso.anomalo { --c: var(--alto); } .aviso.senal { --c: var(--tenue); }
+.aviso p { color: var(--tenue); font-size: 14px; margin-top: 2px; }
+
+.pestanas { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--linea); padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--papel); }
+.pestanas a { text-align: center; padding: 14px 4px 16px; color: var(--tenue); text-decoration: none; font-size: 14px; font-weight: 500; border-top: 2px solid transparent; margin-top: -1px; }
+.pestanas a[aria-current="page"] { color: var(--tinta); font-weight: 700; border-top-color: var(--tinta); }
+.pestanas a .n { font-weight: 700; color: var(--alto); }
+.pestanas a:focus-visible, select:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+.error { color: var(--alto); padding: 24px 0; }
+.pie { max-width: 400px; font-size: 12px; color: var(--tenue); }
+@media (max-width: 440px) { .pie { padding: 12px 20px; } }
+</style>
+
+<div class="escena">
+  <div class="demo">
+    <span id="modo">Vista previa con datos reales</span>
+    <label>Hogar de ejemplo
+      <select id="hogar"><option value="MAC004436">MAC004436</option><option value="MAC004400">MAC004400</option></select>
+    </label>
+  </div>
+
+  <div class="app">
+    <div class="arriba"><b>Lumina</b><span id="fecha"></span></div>
+    <main class="contenido" id="contenido"></main>
+    <nav class="pestanas" aria-label="Secciones">
+      <a href="#manana">Mañana</a>
+      <a href="#consumo">Consumo</a>
+      <a href="#factura">Factura</a>
+      <a href="#avisos">Avisos <span class="n" id="globo"></span></a>
+    </nav>
+  </div>
+
+  <p class="pie">Datos reales de un hogar de Londres con tarifa dinámica (Smart Meters in London, 2013), seudonimizado. El “hoy” de la demostración es el viernes 18 de enero de 2013.</p>
+</div>
+
+<script>
+// Vista previa: la página trae una copia de las respuestas de la API. Publicada en Cloud Run, consulta la API en vivo.
+const INSTANTANEA = /*DATOS*/null;
+const HOY = '2013-01-18', MANANA = '2013-01-19', AYER = '2013-01-17', INICIO_MES = '2013-01-01', HACE_2_SEMANAS = '2013-01-05';
+
+async function api(ruta) {
+  if (INSTANTANEA) {
+    if (!(ruta in INSTANTANEA)) throw new Error('Esta vista previa no incluye ' + ruta);
+    return INSTANTANEA[ruta];
+  }
+  const r = await fetch(ruta);
+  if (!r.ok) throw new Error('No pudimos traer tus datos (' + r.status + '). Intenta de nuevo en unos minutos.');
+  return r.json();
+}
+
+const $ = (s) => document.querySelector(s);
+const color = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const num = (x, d = 1) => Number(x).toLocaleString('es-PE', { minimumFractionDigits: d, maximumFractionDigits: d });
+const libras = (x) => '£' + num(x, 2);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const hora = (periodo) => String(Math.floor((periodo - 1) / 2)).padStart(2, '0') + ':' + ((periodo - 1) % 2 ? '30' : '00');
+const fechaLarga = (iso) => new Date(iso + 'T12:00:00Z').toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+const mayus = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const NIVEL = { High: { nombre: 'Alto', css: '--alto', clase: 'alto' }, Normal: { nombre: 'Normal', css: '--normal', clase: 'normal' }, Low: { nombre: 'Bajo', css: '--bajo', clase: 'bajo' } };
+
+// Tramos seguidos de un mismo nivel de precio, con hora de inicio y de fin
+function tramos(filas) {
+  const res = [];
+  for (const r of filas) {
+    const ultimo = res[res.length - 1];
+    if (ultimo && ultimo.nivel === r.nivel && ultimo.hastaP === r.periodo_local - 1) { ultimo.hastaP = r.periodo_local; continue; }
+    res.push({ nivel: r.nivel, desdeP: r.periodo_local, hastaP: r.periodo_local, precio: r.precio_p_kwh });
+  }
+  return res.map((t) => ({ ...t, desde: hora(t.desdeP), hasta: t.hastaP === 48 ? '24:00' : hora(t.hastaP + 1) }));
+}
+const leyenda = '<div class="leyenda"><span style="--c:var(--alto)">Alto</span><span style="--c:var(--normal)">Normal</span><span style="--c:var(--bajo)">Bajo</span></div>';
+
+const graficos = {};
+function grafico(id, config) {
+  graficos[id]?.destroy();
+  Chart.defaults.font.family = "'Public Sans', 'Segoe UI', Arial, sans-serif";
+  Chart.defaults.font.size = 12;
+  Chart.defaults.color = color('--tenue');
+  graficos[id] = new Chart($(id), config);
+}
+const barrasPorPrecio = (filas, valor) => ({
+  type: 'bar',
+  data: { labels: filas.map((r) => hora(r.periodo_local)), datasets: [{
+    data: filas.map(valor), backgroundColor: filas.map((r) => color(NIVEL[r.nivel].css)), barPercentage: 1, categoryPercentage: 0.82,
+  }] },
+  options: { maintainAspectRatio: false, plugins: { legend: { display: false },
+      tooltip: { callbacks: { title: (i) => i[0].label + ' · precio ' + NIVEL[filas[i[0].dataIndex].nivel].nombre, label: (c) => num(c.raw, 2) + ' kWh' } } },
+    scales: { x: { grid: { display: false }, border: { color: color('--linea-fuerte') }, ticks: { maxRotation: 0, autoSkip: false, callback: (v, i) => (i % 12 === 0 ? hora(i + 1) : '') } },
+      y: { grid: { color: color('--grid') }, border: { display: false }, ticks: { maxTicksLimit: 4, callback: (v) => num(v, 1) } } } },
+});
+
+// ---------------------------------------------------------------- mañana
+async function pantallaManana(h) {
+  const filas = await api(`/hogares/${h}/manana?fecha=${MANANA}`);
+  const t = tramos(filas);
+  const altos = t.filter((x) => x.nivel === 'High'), bajos = t.filter((x) => x.nivel === 'Low');
+  const kwhDia = filas[0].kwh_dia_pronostico;
+  const costo = filas.reduce((a, r) => a + (r.kwh_esperado ?? 0) * r.precio_p_kwh, 0) / 100;
+  const costoPlano = filas.reduce((a, r) => a + (r.kwh_esperado ?? 0) * r.precio_plano_p_kwh, 0) / 100;
+  const enAlto = filas.filter((r) => r.nivel === 'High');
+  const kwhAlto = enAlto.reduce((a, r) => a + (r.kwh_esperado ?? 0), 0);
+  const pAlto = enAlto[0]?.precio_p_kwh;
+  const pBajo = filas.find((r) => r.nivel === 'Low')?.precio_p_kwh ?? filas.find((r) => r.nivel === 'Normal').precio_p_kwh;
+  const ahorro = kwhAlto * (pAlto - pBajo) / 100;
+  const mejor = bajos.length ? bajos.reduce((a, b) => (b.hastaP - b.desdeP > a.hastaP - a.desdeP ? b : a)) : null;
+  const ancho = (x) => ((x.hastaP - x.desdeP + 1) / 48) * 100;
+
+  $('#contenido').innerHTML = `
+    <div>
+      <h1>${altos.length ? `Mañana, usa la luz antes de las ${altos[0].desde}` : 'Mañana el precio es Normal todo el día'}</h1>
+      <p class="bajada">${mayus(fechaLarga(MANANA))}. ${altos.length ? `De ${altos.map((x) => x.desde + ' a ' + x.hasta).join(' y ')} el kWh cuesta ${num(pAlto / filas[0].precio_plano_p_kwh, 1)} veces más que en la tarifa plana.` : ''}</p>
+    </div>
+    <section aria-label="Precios de mañana">
+      <h2>Precios de mañana</h2>
+      <div class="horario">
+        ${t.map((x) => `<div class="tramo ${NIVEL[x.nivel].clase}"><span class="horas">${x.desde}–${x.hasta}</span><span class="nivel">${NIVEL[x.nivel].nombre}${x === mejor ? '<span class="precio">· el mejor momento</span>' : ''}</span><span class="precio">${num(x.precio, 2)} p/kWh</span></div>`).join('')}
+      </div>
+      <div class="franja" role="img" aria-label="Nivel de precio a lo largo del día">${t.map((x) => `<i style="width:${ancho(x)}%;background:var(${NIVEL[x.nivel].css})"></i>`).join('')}</div>
+      <div class="reglilla"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
+      <p class="nota">p = peniques. La tarifa plana cuesta ${num(filas[0].precio_plano_p_kwh, 2)} p/kWh a toda hora.</p>
+    </section>
+    ${altos.length && kwhAlto > 0.05 ? `<section>
+      <h2>Lo que puedes ahorrar</h2>
+      <p>Tu casa suele usar <strong>${num(kwhAlto, 1)} kWh</strong> entre las ${altos[0].desde} y las ${altos[altos.length - 1].hasta}. Si la lavadora, la secadora o el lavavajillas funcionan ${mejor ? `entre las ${mejor.desde} y las ${mejor.hasta}` : 'en otro horario'}, ahorras <strong class="positivo">${libras(ahorro)}</strong> mañana.</p>
+    </section>` : ''}
+    <section>
+      <h2>Tu consumo esperado</h2>
+      <div class="recibo">
+        <div class="renglon"><span>Energía<small>según tu historial y el clima</small></span><span>${num(kwhDia, 1)} kWh</span></div>
+        <div class="renglon"><span>Costo con tu tarifa dinámica<small>si consumes como siempre</small></span><span>${libras(costo)}</span></div>
+        <div class="renglon"><span>Costo con tarifa plana</span><span>${libras(costoPlano)}</span></div>
+      </div>
+      <div class="grafico" style="margin-top:16px"><canvas id="g-manana" aria-label="Consumo esperado de mañana por media hora y nivel de precio"></canvas></div>
+      ${leyenda}
+    </section>`;
+  grafico('#g-manana', barrasPorPrecio(filas, (r) => r.kwh_esperado));
+}
+
+// ---------------------------------------------------------------- consumo
+async function pantallaConsumo(h) {
+  const [dias, ayer] = await Promise.all([api(`/hogares/${h}/consumo?desde=${HACE_2_SEMANAS}&hasta=${HOY}`), api(`/hogares/${h}/dia?fecha=${AYER}`)]);
+  const promedio = dias.reduce((a, r) => a + r.kwh_total, 0) / dias.length;
+  const hoy = dias[dias.length - 1];
+  const kwhAyer = ayer.reduce((a, r) => a + (r.kwh ?? 0), 0);
+  const costoAyer = ayer.reduce((a, r) => a + (r.kwh ?? 0) * r.precio_p_kwh, 0) / 100;
+  const altoAyer = ayer.filter((r) => r.nivel === 'High');
+  const kwhAltoAyer = altoAyer.reduce((a, r) => a + (r.kwh ?? 0), 0);
+  const costoAltoAyer = altoAyer.reduce((a, r) => a + (r.kwh ?? 0) * r.precio_p_kwh, 0) / 100;
+  const dif = (hoy.kwh_total / promedio - 1) * 100;
+  const maximo = Math.max(hoy.kwh_total, promedio);
+  $('#contenido').innerHTML = `
+    <div>
+      <h1>${Math.abs(dif) < 10 ? 'Hoy consumiste lo de siempre' : dif > 0 ? `Hoy consumiste ${num(dif, 0)} % más que de costumbre` : `Hoy consumiste ${num(-dif, 0)} % menos que de costumbre`}</h1>
+      <p class="bajada">Comparado con tu promedio de las últimas dos semanas.</p>
+    </div>
+    <section class="comparar" aria-label="Hoy frente a tu promedio">
+      <div class="hoy"><span>Hoy</span><i style="width:${hoy.kwh_total / maximo * 100}%"></i><span>${num(hoy.kwh_total, 1)} kWh</span></div>
+      <div><span>Tu promedio</span><i style="width:${promedio / maximo * 100}%"></i><span>${num(promedio, 1)} kWh</span></div>
+    </section>
+    <section>
+      <h2>Últimos 14 días</h2>
+      <div class="grafico"><canvas id="g-dias" aria-label="Consumo diario de las últimas dos semanas"></canvas></div>
+    </section>
+    <section>
+      <h2>Ayer, ${fechaLarga(AYER)}</h2>
+      <div class="recibo">
+        <div class="renglon"><span>Energía</span><span>${num(kwhAyer, 1)} kWh</span></div>
+        <div class="renglon"><span>En horas de precio Alto</span><span class="${kwhAltoAyer > 0.05 ? 'negativo' : ''}">${num(kwhAltoAyer, 1)} kWh · ${libras(costoAltoAyer)}</span></div>
+        <div class="renglon total"><span>Pagaste</span><span>${libras(costoAyer)}</span></div>
+      </div>
+      <div class="grafico" style="margin-top:16px"><canvas id="g-ayer" aria-label="Consumo de ayer por media hora y nivel de precio"></canvas></div>
+      ${leyenda}
+    </section>`;
+  grafico('#g-dias', {
+    type: 'bar',
+    data: { labels: dias.map((r) => new Date(r.fecha + 'T12:00:00Z').toLocaleDateString('es-PE', { day: 'numeric', timeZone: 'UTC' })),
+      datasets: [{ data: dias.map((r) => r.kwh_total), backgroundColor: dias.map((_, i) => (i === dias.length - 1 ? color('--tinta') : color('--normal'))), barPercentage: 0.7 }] },
+    options: { maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => num(c.raw, 1) + ' kWh' } } },
+      scales: { x: { grid: { display: false }, border: { color: color('--linea-fuerte') } },
+        y: { grid: { color: color('--grid') }, border: { display: false }, ticks: { maxTicksLimit: 4 } } } },
+  });
+  grafico('#g-ayer', barrasPorPrecio(ayer, (r) => r.kwh));
+}
+
+// ---------------------------------------------------------------- factura
+async function pantallaFactura(h) {
+  const [f] = await api(`/hogares/${h}/factura?desde=${INICIO_MES}&hasta=${HOY}`);
+  const ahorro = f.costo_plana_gbp - f.costo_dinamica_gbp;
+  const normal = Math.max(0, f.kwh - f.kwh_alto - f.kwh_bajo);
+  const p = (x) => (x / f.kwh) * 100;
+  $('#contenido').innerHTML = `
+    <div>
+      <h1>${ahorro >= 0 ? `En enero llevas ${libras(ahorro)} de ahorro` : `En enero la tarifa dinámica te costó ${libras(-ahorro)} más`}</h1>
+      <p class="bajada">Del 1 al 18 de enero, frente a lo que habrías pagado con tarifa plana por la misma energía.</p>
+    </div>
+    <section>
+      <h2>Tu factura hasta hoy</h2>
+      <div class="recibo">
+        <div class="renglon"><span>Energía consumida</span><span>${num(f.kwh, 1)} kWh</span></div>
+        <div class="renglon"><span>Con tarifa plana</span><span>${libras(f.costo_plana_gbp)}</span></div>
+        <div class="renglon"><span>Con tu tarifa dinámica</span><span>${libras(f.costo_dinamica_gbp)}</span></div>
+        <div class="renglon total"><span>${ahorro >= 0 ? 'Ahorro' : 'Pagaste de más'}</span><span class="${ahorro >= 0 ? 'positivo' : 'negativo'}">${libras(Math.abs(ahorro))}</span></div>
+      </div>
+    </section>
+    <section>
+      <h2>Cuándo usaste la energía</h2>
+      <div class="recibo">
+        <div class="renglon"><span>En precio Alto</span><span>${num(p(f.kwh_alto), 1)} % · ${libras(f.costo_en_alto_gbp)}</span></div>
+        <div class="renglon"><span>En precio Normal</span><span>${num(p(normal), 1)} %</span></div>
+        <div class="renglon"><span>En precio Bajo</span><span>${num(p(f.kwh_bajo), 1)} %</span></div>
+      </div>
+      <p class="nota">El ${num(p(f.kwh_alto), 1)} % de tu energía en horas de precio Alto fue el ${num(f.costo_en_alto_gbp / f.costo_dinamica_gbp * 100, 0)} % de lo que pagaste.</p>
+    </section>
+    <section>
+      <h2>Cómo funciona tu tarifa</h2>
+      <div class="horario">
+        <div class="tramo alto"><span class="horas">4.5 % del año</span><span class="nivel">Alto</span><span class="precio">67.20 p/kWh</span></div>
+        <div class="tramo normal"><span class="horas">86 % del año</span><span class="nivel">Normal</span><span class="precio">11.76 p/kWh</span></div>
+        <div class="tramo bajo"><span class="horas">9.5 % del año</span><span class="nivel">Bajo</span><span class="precio">3.99 p/kWh</span></div>
+      </div>
+      <p class="nota">El precio Alto llega cuando la red está exigida y el Bajo cuando sobra energía. Te avisamos un día antes.</p>
+    </section>`;
+}
+
+// ---------------------------------------------------------------- avisos
+function avisosDe(avisos, manana) {
+  const silencio = avisos.filter((a) => a.tipo === 'medidor_silencioso').sort((a, b) => a.ts_evento.localeCompare(b.ts_evento)).slice(0, 1);
+  const lista = [...avisos.filter((a) => a.tipo !== 'medidor_silencioso'), ...silencio].sort((a, b) => b.ts_evento.localeCompare(a.ts_evento));
+  const altos = tramos(manana).filter((x) => x.nivel === 'High');
+  return { lista, altos, total: lista.length + (altos.length ? 1 : 0) };
+}
+function fechaAviso(ts) {
+  const d = new Date(ts);
+  return `<b>${d.toLocaleDateString('es-PE', { weekday: 'short', day: 'numeric', timeZone: 'UTC' })}</b>${d.toISOString().slice(11, 16)}`;
+}
+async function pantallaAvisos(h) {
+  const [avisos, manana] = await Promise.all([api(`/hogares/${h}/avisos`), api(`/hogares/${h}/manana?fecha=${MANANA}`)]);
+  const { lista, altos, total } = avisosDe(avisos, manana);
+  const anomalos = lista.filter((a) => a.tipo === 'consumo_anomalo').length;
+  $('#contenido').innerHTML = `
+    <div>
+      <h1>${anomalos ? `Tu casa consumió de más ${anomalos} ${anomalos === 1 ? 'vez' : 'veces'} esta semana` : lista.length ? 'Tu medidor estuvo sin señal' : 'Todo en orden en tu casa'}</h1>
+      <p class="bajada">${total} ${total === 1 ? 'aviso' : 'avisos'}, del más reciente al más antiguo.</p>
+    </div>
+    <section class="avisos" aria-label="Avisos">
+      ${altos.length ? `<div class="aviso precio"><time><b>Hoy</b></time><div><span class="tipo">Precio de mañana</span><span class="que">Precio Alto de ${altos.map((x) => x.desde + ' a ' + x.hasta).join(' y ')}</span><p>Usa los electrodomésticos grandes antes de las ${altos[0].desde}.</p></div></div>` : ''}
+      ${lista.map((a) => a.tipo === 'medidor_silencioso'
+        ? `<div class="aviso senal"><time>${fechaAviso(a.ts_evento)}</time><div><span class="tipo">Medidor</span><span class="que">Tu medidor dejó de enviar lecturas</span><p>El equipo técnico ya tiene el aviso. El medidor guarda tus lecturas y las envía cuando vuelve la señal: no se pierde nada.</p></div></div>`
+        : `<div class="aviso anomalo"><time>${fechaAviso(a.ts_evento)}</time><div><span class="tipo">Consumo inusual</span><span class="que">${num(a.valor, 2)} kWh en media hora</span><p>Tu casa suele usar hasta ${num(a.umbral, 2)} kWh a esa hora. ¿Quedó encendida la estufa, la terma o el horno?</p></div></div>`).join('')}
+    </section>`;
+}
+
+// ---------------------------------------------------------------- navegación
+const pantallas = { manana: pantallaManana, consumo: pantallaConsumo, factura: pantallaFactura, avisos: pantallaAvisos };
+async function mostrar() {
+  const nombre = pantallas[location.hash.slice(1)] ? location.hash.slice(1) : 'manana';
+  document.querySelectorAll('.pestanas a').forEach((a) => {
+    if (a.getAttribute('href') === '#' + nombre) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
+  const h = $('#hogar').value;
+  $('#fecha').textContent = mayus(fechaLarga(HOY)) + ' · ' + h;
+  try { await pantallas[nombre](h); }
+  catch (e) { $('#contenido').innerHTML = `<p class="error">${esc(e.message)}</p>`; }
+}
+async function contarAvisos() {
+  try {
+    const h = $('#hogar').value;
+    const [avisos, manana] = await Promise.all([api(`/hogares/${h}/avisos`), api(`/hogares/${h}/manana?fecha=${MANANA}`)]);
+    $('#globo').textContent = avisosDe(avisos, manana).total || '';
+  } catch { $('#globo').textContent = ''; }
+}
+$('#hogar').addEventListener('change', () => { mostrar(); contarAvisos(); });
+window.addEventListener('hashchange', mostrar);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', mostrar);
+new MutationObserver(mostrar).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+$('#modo').textContent = INSTANTANEA ? 'Vista previa con datos reales copiados de la API' : 'En vivo · datos de BigQuery a través de la API';
+mostrar(); contarAvisos();
+</script>

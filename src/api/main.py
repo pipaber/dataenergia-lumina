@@ -13,7 +13,10 @@ import os
 from datetime import date
 from typing import Any
 
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse, RedirectResponse
 from google.cloud import bigquery
 
 PROYECTO = os.environ.get("PROYECTO", "tespipaber")
@@ -27,6 +30,27 @@ app = FastAPI(
     version="1.0.0",
 )
 _cliente: bigquery.Client | None = None
+PAGINAS = Path(__file__).resolve().parent / "static"
+
+
+# ---------------------------------------------------------------- las dos aplicaciones web
+# Mismo origen que la API: las páginas piden sus datos a las rutas de abajo, sin CORS.
+
+@app.get("/", include_in_schema=False)
+def inicio():
+    return RedirectResponse("/app")
+
+
+@app.get("/app", include_in_schema=False)
+def app_cliente():
+    """App del cliente: precios de mañana, cuánto ahorrar, consumo, factura y avisos de su hogar."""
+    return FileResponse(PAGINAS / "cliente.html", media_type="text/html; charset=utf-8")
+
+
+@app.get("/consola", include_in_schema=False)
+def consola():
+    """Consola interna de Lumina: una vista por rol (control, compras, mantenimiento, planificación, comercial, gerencia)."""
+    return FileResponse(PAGINAS / "consola.html", media_type="text/html; charset=utf-8")
 
 
 def bq() -> bigquery.Client:
@@ -110,14 +134,18 @@ def factura_hogar(lclid: str):
 
 @app.get("/alertas")
 def alertas(tipo: str | None = Query(None, examples=["consumo_anomalo"]), zona: int | None = None,
+            desde: date | None = Query(None, examples=["2013-01-14"]), hasta: date | None = Query(None, examples=["2013-01-20"]),
             limite: int = Query(50, ge=1, le=500)):
-    """Últimas alertas del streaming: consumo_anomalo, medidor_silencioso, pico_zona, lectura_negativa."""
+    """Últimas alertas del streaming: consumo_anomalo, medidor_silencioso, pico_zona, lectura_negativa.
+    Con `desde` y `hasta`, solo las de esos días."""
     return consultar(f"""
         SELECT ts_evento, tipo, lclid, zona, transformador, valor, umbral, latencia_s
         FROM {OLAP}.v_alertas`
         WHERE (@tipo = '' OR tipo = @tipo) AND (@zona < 0 OR zona = @zona)
+          AND DATE(ts_evento) BETWEEN @desde AND @hasta
         ORDER BY ts_evento DESC LIMIT @limite""",
-        tipo=tipo or "", zona=-1 if zona is None else zona, limite=limite)
+        tipo=tipo or "", zona=-1 if zona is None else zona,
+        desde=desde or date(1900, 1, 1), hasta=hasta or date(2100, 1, 1), limite=limite)
 
 
 @app.get("/mantenimiento/medidores")
@@ -151,3 +179,134 @@ def consumo_segmentos(desde: date = Query(..., examples=["2013-01-01"]),
         FROM {OLAP}.v_consumo_segmento_diario`
         WHERE fecha BETWEEN @desde AND @hasta
         GROUP BY acorn_grupo, tarifa ORDER BY acorn_grupo, tarifa""", desde=desde, hasta=hasta), "segmentos")
+
+
+# ---------------------------------------------------------------- rutas agregadas para la app web
+# Devuelven lo que una pantalla necesita en una sola consulta (todas las zonas o un rango de fechas).
+
+@app.get("/red/carga")
+def carga_red(fecha: date = Query(..., examples=["2013-01-16"])):
+    """Carga de las 8 zonas cada 30 min en un día, con el umbral p95 y la marca de pico."""
+    return uno_o_404(consultar(f"""
+        SELECT zona, ts_utc, hora_local, ROUND(kw_por_medidor, 4) AS kw_por_medidor, ROUND(kw_p95, 4) AS kw_p95,
+               es_pico, n_medidores, fuente
+        FROM {OLAP}.v_carga_zona_30min`
+        WHERE fecha = @fecha ORDER BY zona, ts_utc""", fecha=fecha), f"carga del {fecha}")
+
+
+@app.get("/plan/pronostico")
+def pronostico_red(desde: date = Query(..., examples=["2014-01-13"]),
+                   hasta: date = Query(..., examples=["2014-01-19"])):
+    """Pronóstico D+1 de las 8 zonas frente a lo real y al método ingenuo (máximo 14 días)."""
+    if (hasta - desde).days > 14 or hasta < desde:
+        raise HTTPException(status_code=400, detail="El rango debe ir de 1 a 14 días.")
+    return uno_o_404(consultar(f"""
+        SELECT zona, ts_utc, fecha, periodo_local, ROUND(real_kw_por_medidor, 4) AS real,
+               ROUND(pronostico_kw_por_medidor, 4) AS pronostico, ROUND(ingenuo_ayer, 4) AS ingenuo
+        FROM {ML}.pronostico_zona_d1`
+        WHERE fecha BETWEEN @desde AND @hasta ORDER BY zona, ts_utc""", desde=desde, hasta=hasta), "pronóstico")
+
+
+@app.get("/indicadores")
+def indicadores():
+    """Métricas fuera de muestra del pronóstico y del mantenimiento predictivo."""
+    return {
+        "pronostico": consultar(f"SELECT * FROM {ML}.metricas_pronostico` ORDER BY modelo, metodo"),
+        "mantenimiento": consultar(f"SELECT * FROM {ML}.metricas_mantenimiento`"),
+    }
+
+
+@app.get("/tarifas/respuesta")
+def respuesta_tarifa():
+    """Consumo durante los eventos de precio Alto y Bajo frente al consumo normal, por tipo de tarifa (2013)."""
+    return consultar(f"SELECT * FROM {ML}.respuesta_eventos_2013` ORDER BY nivel, tarifa")
+
+
+@app.get("/calidad/resumen")
+def calidad_resumen():
+    """Medidores por zona y diagnóstico de calidad."""
+    return consultar(f"""
+        SELECT zona, diagnostico, COUNT(*) AS medidores, ROUND(AVG(cobertura_pct), 1) AS cobertura_media
+        FROM {OLAP}.v_calidad_medidores`
+        WHERE zona IS NOT NULL GROUP BY zona, diagnostico ORDER BY zona, diagnostico""")
+
+
+# ---------------------------------------------------------------- rutas de la app del cliente
+# Un solo hogar por consulta. En producción, el identificador sale del token del inicio de sesión de Lumina.
+
+@app.get("/hogares/{lclid}/manana")
+def manana_hogar(lclid: str, fecha: date = Query(..., examples=["2013-01-19"])):
+    """El día siguiente del hogar: consumo total pronosticado por el modelo, repartido en medias horas
+    según el perfil del hogar, con el nivel y el precio de la tarifa dinámica de cada media hora."""
+    return uno_o_404(consultar(f"""
+        WITH pronostico AS (
+          SELECT predicted_y AS kwh_dia
+          FROM ML.PREDICT(MODEL {ML}.modelo_hogar_d1`,
+                          (SELECT * FROM {ML}.features_hogar_diario` WHERE lclid = @lclid AND fecha = @fecha))
+        ),
+        precios AS (
+          SELECT ts_utc, nivel, precio_p_kwh, precio_plano_p_kwh,
+                 EXTRACT(HOUR FROM DATETIME(ts_utc, 'Europe/London')) * 2
+                   + DIV(EXTRACT(MINUTE FROM DATETIME(ts_utc, 'Europe/London')), 30) + 1 AS periodo_local
+          FROM {CUR}.dim_tarifa_dtou` WHERE fecha = @fecha
+        ),
+        perfil AS (
+          SELECT p.periodo_local, p.kwh_media
+          FROM {CUR}.perfil_hogar` p
+          JOIN {CUR}.dim_fecha` f ON f.fecha = @fecha AND p.tipo_dia = f.tipo_dia
+          WHERE p.lclid = @lclid
+        )
+        SELECT c.ts_utc, c.periodo_local, c.nivel, c.precio_p_kwh, c.precio_plano_p_kwh,
+               ROUND(SAFE_DIVIDE(p.kwh_media, SUM(p.kwh_media) OVER ()) * (SELECT kwh_dia FROM pronostico), 4) AS kwh_esperado,
+               ROUND((SELECT kwh_dia FROM pronostico), 2) AS kwh_dia_pronostico
+        FROM precios c LEFT JOIN perfil p USING (periodo_local)
+        ORDER BY c.ts_utc""", lclid=lclid, fecha=fecha), f"el día siguiente de {lclid}")
+
+
+@app.get("/hogares/{lclid}/dia")
+def dia_hogar(lclid: str, fecha: date = Query(..., examples=["2013-01-17"])):
+    """Consumo real del hogar cada 30 min en un día, con el nivel y el precio de esa media hora."""
+    return uno_o_404(consultar(f"""
+        SELECT c.ts_utc, c.periodo_local, c.kwh, t.nivel, t.precio_p_kwh, t.precio_plano_p_kwh
+        FROM {CUR}.fact_consumo_30min` c
+        JOIN {CUR}.dim_tarifa_dtou` t USING (ts_utc)
+        WHERE c.lclid = @lclid AND c.fecha = @fecha ORDER BY c.ts_utc""", lclid=lclid, fecha=fecha), f"consumo de {lclid}")
+
+
+@app.get("/hogares/{lclid}/factura")
+def factura_periodo(lclid: str, desde: date = Query(..., examples=["2013-01-01"]),
+                    hasta: date = Query(..., examples=["2013-01-18"])):
+    """Lo que el hogar pagó en un período con tarifa dinámica y lo que habría pagado con tarifa plana."""
+    if (hasta - desde).days > 366 or hasta < desde:
+        raise HTTPException(status_code=400, detail="El rango debe ir de 1 a 366 días.")
+    return uno_o_404(consultar(f"""
+        SELECT ROUND(SUM(c.kwh), 2) AS kwh,
+               ROUND(SUM(c.kwh * t.precio_p_kwh) / 100, 2) AS costo_dinamica_gbp,
+               ROUND(SUM(c.kwh * t.precio_plano_p_kwh) / 100, 2) AS costo_plana_gbp,
+               ROUND(SUM(IF(t.nivel = 'High', c.kwh, 0)), 2) AS kwh_alto,
+               ROUND(SUM(IF(t.nivel = 'Low', c.kwh, 0)), 2) AS kwh_bajo,
+               ROUND(SUM(IF(t.nivel = 'High', c.kwh * t.precio_p_kwh, 0)) / 100, 2) AS costo_en_alto_gbp
+        FROM {CUR}.fact_consumo_30min` c
+        JOIN {CUR}.dim_tarifa_dtou` t USING (ts_utc)
+        WHERE c.lclid = @lclid AND c.fecha BETWEEN @desde AND @hasta AND c.kwh IS NOT NULL
+        HAVING COUNT(*) > 0""", lclid=lclid, desde=desde, hasta=hasta), f"factura de {lclid}")
+
+
+@app.get("/hogares/{lclid}/avisos")
+def avisos_hogar(lclid: str, limite: int = Query(20, ge=1, le=100)):
+    """Alertas del streaming sobre este hogar: consumo anómalo y medidor sin señal."""
+    return consultar(f"""
+        SELECT ts_evento, tipo, ROUND(valor, 3) AS valor, ROUND(umbral, 3) AS umbral
+        FROM {OLAP}.v_alertas`
+        WHERE lclid = @lclid ORDER BY ts_evento DESC LIMIT @limite""", lclid=lclid, limite=limite)
+
+
+@app.get("/tarifas/resumen")
+def resumen_tarifas():
+    """Factura media de 2013 por tipo de tarifa: lo pagado con tarifa dinámica y lo que se habría pagado con la plana."""
+    return consultar(f"""
+        SELECT tarifa, COUNT(*) AS hogares, ROUND(AVG(costo_dtou_gbp), 2) AS factura_dinamica_gbp,
+               ROUND(AVG(costo_plano_gbp), 2) AS factura_plana_gbp,
+               ROUND((1 - SUM(costo_dtou_gbp) / SUM(costo_plano_gbp)) * 100, 2) AS ahorro_pct,
+               ROUND(COUNTIF(costo_dtou_gbp < costo_plano_gbp) / COUNT(*) * 100, 1) AS hogares_que_ahorran_pct
+        FROM {ML}.factura_tarifas_2013` GROUP BY tarifa ORDER BY tarifa""")

@@ -19,7 +19,7 @@ REPO_AR="cloud-run-source-deploy"
 lector_dataset() {  # $1 dataset: lectura solo en ese dataset (condición IAM)
   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member "serviceAccount:$SA_EMAIL" --role roles/bigquery.dataViewer \
-    --condition "title=lee_$1,expression=resource.name.startsWith(\"projects/$PROJECT_ID/datasets/$1\")" >/dev/null
+    --condition "title=lee_$1,expression=resource.name.startsWith(\"projects/$PROJECT_ID/datasets/$1\")"     --quiet >/dev/null </dev/null   # sin entrada: gcloud no puede quedarse esperando una respuesta
 }
 
 case "${1:-}" in
@@ -34,7 +34,7 @@ case "${1:-}" in
       sleep 10
     fi
     gcloud projects add-iam-policy-binding "$PROJECT_ID" --condition=None \
-      --member "serviceAccount:$SA_EMAIL" --role roles/bigquery.jobUser >/dev/null
+      --member "serviceAccount:$SA_EMAIL" --role roles/bigquery.jobUser --quiet >/dev/null </dev/null
     # Las vistas de lumina_olap leen curated y rt: el lector necesita los tres, más lumina_ml.
     for ds in lumina_olap lumina_ml lumina_curated lumina_rt; do lector_dataset "$ds"; done
 
