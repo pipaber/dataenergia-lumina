@@ -2,6 +2,8 @@
 # Fase 4 · API de Lumina en Cloud Run: pública para la demo, máximo 1 instancia, escala a cero.
 #
 #   bash infra/13_api_cloud_run.sh desplegar    # construye la imagen (Cloud Build) y publica el servicio
+#   bash infra/13_api_cloud_run.sh desde-github # igual, pero Cloud Build toma el código de GitHub (main):
+#                                               # no sube nada desde la laptop (útil si la subida a GCS es lenta)
 #   bash infra/13_api_cloud_run.sh url          # muestra la URL pública
 #   bash infra/13_api_cloud_run.sh borrar       # borra el servicio y sus imágenes (costo 0)
 #
@@ -47,6 +49,14 @@ case "${1:-}" in
       --cpu 1 --memory 512Mi --timeout 60 \
       --set-env-vars "PROYECTO=$PROJECT_ID" \
       --labels "$LABELS"
+    "$0" url
+    ;;
+
+  desde-github)
+    imagen="$REGION-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/$SERVICIO:$(git -C "$REPO_DIR" rev-parse --short HEAD)"
+    log "Construyendo $imagen desde GitHub (rama main, carpeta src/api)"
+    gcloud builds submit "https://github.com/pipaber/dataenergia-lumina.git" --git-source-revision=main       --git-source-dir=src/api --tag "$imagen" --region "$REGION" --project "$PROJECT_ID" </dev/null
+    gcloud run deploy "$SERVICIO" --image "$imagen" --project "$PROJECT_ID" --region "$REGION" --quiet </dev/null
     "$0" url
     ;;
 
