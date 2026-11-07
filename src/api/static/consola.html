@@ -104,6 +104,7 @@ tr.elegida td { background: var(--sel); font-weight: 600; }
 .indicador span:last-child { color: var(--tenue); font-size: 13px; }
 @media (max-width: 600px) { .indicador { grid-template-columns: 1fr auto; } .indicador span:last-child { grid-column: 1 / -1; } }
 .error { color: var(--alto); }
+.cargando { color: var(--tenue); padding: 24px 0; }
 .pie { grid-column: 1 / -1; margin-top: 40px; padding-top: 12px; border-top: 1px solid var(--linea); font-size: 12px; color: var(--tenue); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
 </style>
 
@@ -137,7 +138,26 @@ tr.elegida td { background: var(--sel); font-weight: 600; }
 // Vista previa: la página trae una copia de las respuestas de la API. Publicada en Cloud Run, consulta la API en vivo.
 const INSTANTANEA = /*DATOS*/null;
 
-async function api(ruta) {
+// Cada respuesta se pide una sola vez por visita: volver a una vista o a un día ya visto es instantáneo.
+const memoria = new Map();
+function api(ruta) {
+  if (!memoria.has(ruta)) {
+    const promesa = pedir(ruta);
+    promesa.catch(() => memoria.delete(ruta));   // un error no queda guardado: se reintenta la próxima vez
+    memoria.set(ruta, promesa);
+  }
+  return memoria.get(ruta);
+}
+// Precarga en segundo plano lo que el usuario probablemente abrirá después.
+const precargar = (rutas) => setTimeout(() => rutas.forEach((r) => api(r).catch(() => {})), 300);
+// Si los datos tardan más de 150 ms, muestra "Cargando…" en vez de dejar la vista anterior congelada.
+let turno = 0;
+async function conCarga(caja, tarea) {
+  const t = ++turno;
+  const aviso = setTimeout(() => { if (t === turno) $(caja).innerHTML = '<p class="cargando">Cargando…</p>'; }, 150);
+  try { await tarea(); } finally { clearTimeout(aviso); }
+}
+async function pedir(ruta) {
   if (INSTANTANEA) {
     if (!(ruta in INSTANTANEA)) throw new Error('Esta vista previa no incluye ' + ruta);
     return INSTANTANEA[ruta];
@@ -205,7 +225,7 @@ async function vistaControl() {
 
   $('#vista').innerHTML = `
     ${encabezado('Centro de control', titulo, `Lo que el streaming detectó el ${diaLargo(diaControl)}, durante la reproducción de la ola de frío de enero de 2013.`)}
-    ${botonesDias(SEMANA, diaControl, (d) => { diaControl = d; vistaControl(); })}
+    ${botonesDias(SEMANA, diaControl, (d) => { diaControl = d; conCarga('#vista', vistaControl); })}
     <section>
       <h2>Carga por zona</h2>
       <p class="explica">Pico: la carga por medidor supera el p95 histórico de la zona (lo que se supera solo el 5 % de los días parecidos), entre las 17 y las 21 h.</p>
@@ -264,7 +284,7 @@ async function vistaCompras() {
   $('#vista').innerHTML = `
     ${encabezado('Compras de energía', `Para el ${diaLargo(diaPlan)} el plan pidió ${num(total('pron'), 2)} kWh por medidor y se consumieron ${num(total('real'), 2)}`,
       `Pronóstico hecho la víspera, en enero de 2014, meses que el modelo no vio al entrenar. Proyectado a 8 millones de medidores: ${ent(total('pron') * MEDIDORES / 1000)} MWh pedidos frente a ${ent(total('real') * MEDIDORES / 1000)} MWh consumidos (${num(errDia, 1)} % de diferencia).`)}
-    ${botonesDias(SEMANA_PLAN, diaPlan, (d) => { diaPlan = d; vistaCompras(); })}
+    ${botonesDias(SEMANA_PLAN, diaPlan, (d) => { diaPlan = d; conCarga('#vista', vistaCompras); })}
     <section>
       <h2>Plan por zona</h2>
       <p class="explica">Energía del día por medidor. Error: diferencia de cada media hora, sumada, sobre lo consumido. Elige una zona para ver el detalle.</p>
@@ -437,8 +457,11 @@ async function mostrar() {
   document.querySelectorAll('.roles a').forEach((a) => {
     if (a.getAttribute('href') === '#' + nombre) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
-  try { await vistas[nombre](); }
+  try { await conCarga('#vista', vistas[nombre]); }
   catch (e) { $('#vista').innerHTML = `<p class="error">No se pudieron cargar los datos: ${esc(e.message)}</p>`; }
+  precargar([...SEMANA.map((d) => `/red/carga?fecha=${d}`), '/plan/pronostico?desde=2014-01-13&hasta=2014-01-19', '/indicadores',
+    '/mantenimiento/medidores?limite=20', '/calidad/resumen', '/mantenimiento/transformadores?limite=112',
+    '/tarifas/respuesta', '/tarifas/resumen', '/segmentos/consumo?desde=2013-01-01&hasta=2013-12-31']);
 }
 window.addEventListener('hashchange', mostrar);
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', mostrar);

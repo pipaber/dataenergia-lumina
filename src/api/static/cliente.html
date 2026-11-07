@@ -94,6 +94,7 @@ strong { font-weight: 700; }
 .pestanas a .n { font-weight: 700; color: var(--alto); }
 .pestanas a:focus-visible, select:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
 .error { color: var(--alto); padding: 24px 0; }
+.cargando { color: var(--tenue); padding: 24px 0; }
 .pie { max-width: 400px; font-size: 12px; color: var(--tenue); }
 @media (max-width: 440px) { .pie { padding: 12px 20px; } }
 </style>
@@ -125,7 +126,26 @@ strong { font-weight: 700; }
 const INSTANTANEA = /*DATOS*/null;
 const HOY = '2013-01-18', MANANA = '2013-01-19', AYER = '2013-01-17', INICIO_MES = '2013-01-01', HACE_2_SEMANAS = '2013-01-05';
 
-async function api(ruta) {
+// Cada respuesta se pide una sola vez por visita: volver a una vista o a un día ya visto es instantáneo.
+const memoria = new Map();
+function api(ruta) {
+  if (!memoria.has(ruta)) {
+    const promesa = pedir(ruta);
+    promesa.catch(() => memoria.delete(ruta));   // un error no queda guardado: se reintenta la próxima vez
+    memoria.set(ruta, promesa);
+  }
+  return memoria.get(ruta);
+}
+// Precarga en segundo plano lo que el usuario probablemente abrirá después.
+const precargar = (rutas) => setTimeout(() => rutas.forEach((r) => api(r).catch(() => {})), 300);
+// Si los datos tardan más de 150 ms, muestra "Cargando…" en vez de dejar la vista anterior congelada.
+let turno = 0;
+async function conCarga(caja, tarea) {
+  const t = ++turno;
+  const aviso = setTimeout(() => { if (t === turno) $(caja).innerHTML = '<p class="cargando">Cargando…</p>'; }, 150);
+  try { await tarea(); } finally { clearTimeout(aviso); }
+}
+async function pedir(ruta) {
   if (INSTANTANEA) {
     if (!(ruta in INSTANTANEA)) throw new Error('Esta vista previa no incluye ' + ruta);
     return INSTANTANEA[ruta];
@@ -346,8 +366,10 @@ async function mostrar() {
   });
   const h = $('#hogar').value;
   $('#fecha').textContent = mayus(fechaLarga(HOY)) + ' · ' + h;
-  try { await pantallas[nombre](h); }
+  try { await conCarga('#contenido', () => pantallas[nombre](h)); }
   catch (e) { $('#contenido').innerHTML = `<p class="error">${esc(e.message)}</p>`; }
+  precargar([`/hogares/${h}/manana?fecha=${MANANA}`, `/hogares/${h}/consumo?desde=${HACE_2_SEMANAS}&hasta=${HOY}`,
+    `/hogares/${h}/dia?fecha=${AYER}`, `/hogares/${h}/factura?desde=${INICIO_MES}&hasta=${HOY}`, `/hogares/${h}/avisos`]);
 }
 async function contarAvisos() {
   try {

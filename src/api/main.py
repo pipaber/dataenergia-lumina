@@ -10,12 +10,12 @@ Local:  PROYECTO=<id> uvicorn main:app --reload        Documentación interactiv
 from __future__ import annotations
 
 import os
+import time
 from datetime import date
+from pathlib import Path
 from typing import Any
 
-from pathlib import Path
-
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, RedirectResponse
 from google.cloud import bigquery
 
@@ -31,6 +31,23 @@ app = FastAPI(
 )
 _cliente: bigquery.Client | None = None
 PAGINAS = Path(__file__).resolve().parent / "static"
+
+
+@app.middleware("http")
+async def encabezados_cache(request: Request, call_next):
+    """El navegador reutiliza las respuestas: 30 s lo que viene del streaming, 1 h la historia.
+    Las páginas no se guardan, para que un despliegue nuevo se vea de inmediato."""
+    respuesta = await call_next(request)
+    ruta = request.url.path
+    if request.method != "GET" or respuesta.status_code != 200 or ruta.startswith(("/docs", "/openapi", "/redoc")):
+        return respuesta
+    if ruta in ("/", "/app", "/consola"):
+        respuesta.headers["Cache-Control"] = "no-cache"
+    elif ruta.startswith(("/alertas", "/red/", "/zonas/")) or ruta.endswith("/avisos"):
+        respuesta.headers["Cache-Control"] = "public, max-age=30"
+    else:
+        respuesta.headers["Cache-Control"] = "public, max-age=3600"
+    return respuesta
 
 
 # ---------------------------------------------------------------- las dos aplicaciones web
@@ -60,7 +77,25 @@ def bq() -> bigquery.Client:
     return _cliente
 
 
+# Caché en memoria: casi todo es historia que no cambia, y Cloud Run corre una sola instancia.
+# Lo que lee la capa de velocidad (alertas y carga del día) vence a los 30 s para ver lo nuevo del streaming.
+_cache: dict[tuple, tuple[float, list[dict[str, Any]]]] = {}
+VIVO = ("v_alertas", "v_carga_zona_30min")
+
+
 def consultar(sql: str, **params: Any) -> list[dict[str, Any]]:
+    clave = (sql, tuple(sorted((k, str(v)) for k, v in params.items())))
+    guardado = _cache.get(clave)
+    if guardado and guardado[0] > time.time():
+        return guardado[1]
+    filas = _consultar_bq(sql, **params)
+    if len(_cache) >= 500:
+        _cache.pop(next(iter(_cache)))
+    _cache[clave] = (time.time() + (30 if any(v in sql for v in VIVO) else 3600), filas)
+    return filas
+
+
+def _consultar_bq(sql: str, **params: Any) -> list[dict[str, Any]]:
     tipos = {str: "STRING", int: "INT64", float: "FLOAT64", date: "DATE"}
     config = bigquery.QueryJobConfig(
         maximum_bytes_billed=TOPE_BYTES,
@@ -127,7 +162,7 @@ def factura_hogar(lclid: str):
     filas = uno_o_404(consultar(f"""
         SELECT tarifa, acorn_grupo, kwh_2013, costo_dtou_gbp, costo_plano_gbp, pct_kwh_en_high, pct_kwh_en_low
         FROM {ML}.factura_tarifas_2013` WHERE lclid = @lclid""", lclid=lclid), f"factura de {lclid}")
-    f = filas[0]
+    f = dict(filas[0])   # copia: la fila original vive en el caché
     f["ahorro_dtou_gbp"] = round(f["costo_plano_gbp"] - f["costo_dtou_gbp"], 2)
     return f
 
