@@ -49,11 +49,19 @@ Los bloques siguen las cuatro secciones de la presentación, uno por integrante.
 |---|---|---|
 | ¿Por qué Lambda y no Kappa? | Edgard | Recalcular dos años de perfiles y pronósticos es más barato y simple en batch |
 | ¿Por qué no usaron Kafka gestionado, Composer y Bigtable en el prototipo? | Edgard | Cobran por hora aunque nadie los use (≈ US$975 al mes juntos); la VM cuesta US$0.13 por hora y se destruye. El código es el mismo |
+| ¿Por qué Managed Service for Apache Kafka y no Pub/Sub? | Edgard | La RFP pide APIs de código abierto: Kafka usa el mismo protocolo en cualquier nube, y la versión gestionada evita operar los servidores. Pub/Sub también serviría y es más simple, pero es propio de Google. En el prototipo usamos Kafka en una VM; pasar al gestionado es cambiar la dirección de conexión |
+| ¿Qué es Kafka Connect? | Edgard | Conectores ya hechos que copian datos entre Kafka y otros sistemas, sin programar. En el diseño, uno copia cada lectura al data lake. En el prototipo esa copia la hace Spark Streaming: las 523,868 lecturas de la demo llegaron completas al lake |
+| ¿Por qué Spark y no Cloud Run para procesar? | Edgard | Cloud Run atiende peticiones cortas y sin memoria. El streaming necesita memoria: ventanas de 30 minutos por zona, la última lectura de cada medidor y retomar donde quedó si se cae. El batch reparte 167 M de lecturas entre varias máquinas y cobra solo mientras corre (US$0.65 toda la historia). Cloud Run sí se usa donde encaja: la API y las dos aplicaciones |
+| ¿Para qué es BigQuery ML? | Edgard | Para entrenar modelos de predicción con SQL donde ya están los datos, sin sacarlos ni administrar servidores. Tres modelos: pronóstico del día siguiente por zona (4.4 % de error), pronóstico por hogar y riesgo de falla de cada medidor. Entrenarlos costó unos US$0.60 |
+| ¿Por qué Bigtable y no solo BigQuery? | Edgard | BigQuery es para análisis: lee mucho, tarda segundos y cobra por consulta. La app necesita millones de consultas pequeñas en milisegundos, y para eso es Bigtable. En el prototipo usamos solo BigQuery, porque con 5,561 hogares alcanza. Bigtable es el rubro más caro (≈ US$12 k al año); si la app tolerara segundos, se podría quitar |
+| ¿Para qué Firebase y no solo Cloud Run? | Edgard | Se complementan. Cloud Run responde cuando la app pregunta; para avisar al cliente con la app cerrada hace falta una notificación push, y eso lo hace Firebase Cloud Messaging, que es gratuito. Está en el diseño, no implementado. Su inicio de sesión se descartó: costaría ≈ US$91 k al año |
 | ¿Qué pasa si se cae un concentrador? | Diego | Spark lo detecta en 2 horas por la falta de lecturas; en la prueba detectó los 52 medidores. El medidor guarda sus lecturas y no se pierde consumo |
 | ¿De dónde sale el beneficio de US$9.6 M? | Piero | Del recorte medido de 5.6 % en la punta, con una prima supuesta de US$100/MWh. Aun con un décimo del efecto, la plataforma se paga sola |
 | ¿El modelo de mantenimiento es mejor que una regla simple? | Piero | Con el mismo número de inspecciones empata; su valor es ir más allá de esa lista, donde acierta 3 veces más que al azar |
 | ¿Cuánto costó el prototipo? | Diego | ≈ US$2.3 de los US$300 |
 | ¿Qué problema de negocio resuelve y cómo se mide el éxito? | Yessenia | La hora punta cara y los datos sin usar; cada indicador tiene un objetivo y una medición real del prototipo |
+
+**Prototipo frente a producción.** Kafka gestionado, Kafka Connect, Bigtable y Firebase están en el diseño de producción, no en el prototipo. Conviene decirlo antes de que lo pregunten: el prototipo usa los mismos motores (Kafka, Spark y Airflow) en una VM, y BigQuery para servir los datos.
 
 ## Antes del 21
 
