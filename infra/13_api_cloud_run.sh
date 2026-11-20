@@ -4,6 +4,8 @@
 #   bash infra/13_api_cloud_run.sh desplegar    # construye la imagen (Cloud Build) y publica el servicio
 #   bash infra/13_api_cloud_run.sh desde-github # igual, pero Cloud Build toma el código de GitHub (main):
 #                                               # no sube nada desde la laptop (útil si la subida a GCS es lenta)
+#   bash infra/13_api_cloud_run.sh encender-demo # 1 instancia siempre encendida (día de la sustentación; centavos al día)
+#   bash infra/13_api_cloud_run.sh apagar-demo   # vuelve a escalar a cero
 #   bash infra/13_api_cloud_run.sh url          # muestra la URL pública
 #   bash infra/13_api_cloud_run.sh borrar       # borra el servicio y sus imágenes (costo 0)
 #
@@ -58,6 +60,12 @@ case "${1:-}" in
     gcloud builds submit "https://github.com/pipaber/dataenergia-lumina.git" --git-source-revision=main       --git-source-dir=src/api --tag "$imagen" --region "$REGION" --project "$PROJECT_ID" </dev/null
     gcloud run deploy "$SERVICIO" --image "$imagen" --project "$PROJECT_ID" --region "$REGION" --quiet </dev/null
     "$0" url
+    ;;
+
+  encender-demo | apagar-demo)
+    minimo=$([[ "$1" == encender-demo ]] && echo 1 || echo 0)
+    log "lumina-api con $minimo instancias mínimas"
+    gcloud run services update "$SERVICIO" --project "$PROJECT_ID" --region "$REGION" --min-instances "$minimo" --quiet </dev/null
     ;;
 
   url)

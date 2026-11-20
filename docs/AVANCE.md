@@ -74,7 +74,9 @@ Detalle y resultados → [05_analitica.md](05_analitica.md)
 - ✅ API REST publicada en Cloud Run (pública, máx. 1 instancia): https://lumina-api-csascndwia-uc.a.run.app/docs → `infra/13_api_cloud_run.sh`
 - ✅ Guion de demo end-to-end → [08_guion_demo.md](08_guion_demo.md)
 - ✅ Slides con los 10 puntos del PDF (14 diapositivas, artifact privado; descargable como PowerPoint)
-- ⬜ Ensayo de la demo (alumno) y entrega del repositorio (20-nov)
+- ✅ Guion de la exposición por bloques → [09_guion_exposicion.md](09_guion_exposicion.md); links de todo en el README
+- ✅ API con 1 instancia siempre encendida para la sustentación (apagar después con `13_api_cloud_run.sh apagar-demo`)
+- ⬜ Compartir la presentación con el grupo, ensayar la demo (alumnos) y entregar el repositorio (20-nov)
 - ✅ Libro del proyecto (Quarto Book): 19 capítulos en 3 partes + apéndices, Parte I generada desde la sustentación, flujo interactivo incluido → `_quarto.yml`, `book/`
 - ✅ Workflow de GitHub Pages → `.github/workflows/libro.yml`
 - ✅ Enunciado del curso fuera del repo (copia en `bigdata utec/`)

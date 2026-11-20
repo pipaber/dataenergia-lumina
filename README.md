@@ -9,6 +9,17 @@ Arquitectura Big Data para una red eléctrica inteligente (Smart Grid), desarrol
 
 ![Arquitectura](docs/diagrama_arquitectura.png)
 
+## Para la sustentación (Entrega 3)
+
+| Qué | Dónde |
+|---|---|
+| App del cliente | <https://lumina-api-csascndwia-uc.a.run.app/app> |
+| Consola interna de Lumina | <https://lumina-api-csascndwia-uc.a.run.app/consola> |
+| API (documentación interactiva) | <https://lumina-api-csascndwia-uc.a.run.app/docs> |
+| Presentación (15 diapositivas) | <https://claude.ai/artifact/QHmeEv2B5pmStRPp7h2ri3> |
+| Guion de la exposición | [docs/09_guion_exposicion.md](docs/09_guion_exposicion.md) · [en el libro](https://pipaber.github.io/dataenergia-lumina/docs/09_guion_exposicion.html) |
+| Guion de la demo | [docs/08_guion_demo.md](docs/08_guion_demo.md) · [en el libro](https://pipaber.github.io/dataenergia-lumina/docs/08_guion_demo.html) |
+
 **Estado del proyecto:** [docs/AVANCE.md](docs/AVANCE.md) (checklist de hitos por entrega).
 **Arquitectura técnica:** [docs/arquitectura_tecnica.md](docs/arquitectura_tecnica.md) (qué script corre dónde y para qué; caminos batch y tiempo real).
 

@@ -49,6 +49,7 @@ book:
         - docs/05_analitica.md
         - docs/06_guia_looker_studio.md
         - docs/08_guion_demo.md
+        - docs/09_guion_exposicion.md
   appendices:
     - docs/AVANCE.md
     - book/reproducir.qmd

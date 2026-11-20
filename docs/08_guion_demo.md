@@ -43,4 +43,4 @@ bash infra/07_vm_ops.sh destruir     # costo 0 entre demos
 bash infra/shutdown.sh               # verifica que no quede nada encendido
 ```
 
-La API en Cloud Run puede quedar publicada hasta la nota final (escala a cero, ~US$0). Al cerrar el curso: `bash infra/13_api_cloud_run.sh borrar`.
+Para la sustentación, la API tiene 1 instancia siempre encendida, así la primera carga no tarda. Después del 21, volver a escalar a cero con `bash infra/13_api_cloud_run.sh apagar-demo` (~US$0). Al cerrar el curso: `bash infra/13_api_cloud_run.sh borrar`.
