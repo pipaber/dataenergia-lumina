@@ -2,7 +2,7 @@
 
 Leyenda: ✅ hecho y verificado · 🟡 parcial o bloqueado · ⬜ pendiente
 
-**Actualizado:** 2026-11-03 · **Costo acumulado:** ≈ US$2.3 de US$300 · **Recursos encendidos:** solo la API en Cloud Run (escala a cero)
+**Actualizado:** 2026-11-21 · **Costo acumulado:** ≈ US$2.3 de US$300 · **Recursos encendidos:** solo la API en Cloud Run (escala a cero)
 
 ## Resumen por entrega
 
@@ -77,7 +77,7 @@ Detalle y resultados → [05_analitica.md](05_analitica.md)
 - ✅ Guía de implementación paso a paso: 12 pasos con el comando, el fragmento del script y la salida real → [10_guia_implementacion.md](10_guia_implementacion.md) (generada con `book/armar_guia.py`)
 - ✅ Capturas de pantalla de la guía → `docs/img/guia/` (15 de 15)
 - ✅ Guion de la exposición por bloques → [09_guion_exposicion.md](09_guion_exposicion.md); links de todo en el README
-- ✅ API con 1 instancia siempre encendida para la sustentación (apagar después con `13_api_cloud_run.sh apagar-demo`)
+- ✅ Sustentación y demo en vivo (21-nov); al terminar se destruyó la VM `lumina-ops` y la API volvió a escalar a cero
 - ⬜ Compartir la presentación con el grupo, ensayar la demo (alumnos) y entregar el repositorio (20-nov)
 - ✅ Libro del proyecto (Quarto Book): 19 capítulos en 3 partes + apéndices, Parte I generada desde la sustentación, flujo interactivo incluido → `_quarto.yml`, `book/`
 - ✅ Workflow de GitHub Pages → `.github/workflows/libro.yml`

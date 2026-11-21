@@ -12,3 +12,6 @@ lumina-ops (VM e2-standard-4, sesión en vivo: streaming + Airflow)  estado=DEST
 Spark serverless vía Airflow (2 corridas muestra: silver x2, gold x2; 2 intentos fallidos por cuota sin cómputo)  duracion=13.7 min  DCU-h=4.55 (cota sup.)  costo<=US$0.27
 lumina-ops (VM e2-standard-4, capturas de la guía: streaming + Airflow)  estado=DESTRUIDA  2026-11-21 05:29-05:51 UTC  duracion=22 min  costo<=US$0.05
 Spark serverless vía Airflow (1 corrida muestra del DAG, 22 tareas OK en 10 min 47 s)  2026-11-21  costo<=US$0.15 (estimado por las corridas del 3-nov)
+lumina-ops (VM e2-standard-4, demo de la sustentación: streaming + Airflow)  estado=DESTRUIDA  2026-11-21 13:16-15:17 UTC  duracion=121 min  costo<=US$0.27
+Spark serverless vía Airflow (1 corrida muestra del DAG lanzada 13:21 UTC para la demo; resultado no verificado antes de destruir la VM)  2026-11-21  costo<=US$0.15 (estimado por las corridas del 3-nov)
+Cloud Run lumina-api: 1 instancia mínima durante la sustentación  estado=DE VUELTA A ESCALAR A CERO 2026-11-21 15:17 UTC (revisión lumina-api-00007-mds)  costo=centavos al día mientras estuvo encendida
