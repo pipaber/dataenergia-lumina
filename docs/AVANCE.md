@@ -2,7 +2,7 @@
 
 Leyenda: ✅ hecho y verificado · 🟡 parcial o bloqueado · ⬜ pendiente
 
-**Actualizado:** 2026-11-21 · **Costo acumulado:** ≈ US$2.3 de US$300 · **Recursos encendidos:** solo la API en Cloud Run (escala a cero)
+**Actualizado:** 2026-11-21 · **Costo acumulado:** ≈ US$3 de US$300 (suma de las cotas de la bitácora) · **Recursos encendidos:** solo la API en Cloud Run (escala a cero)
 
 ## Resumen por entrega
 
