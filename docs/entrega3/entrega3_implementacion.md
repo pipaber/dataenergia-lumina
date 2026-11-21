@@ -593,7 +593,7 @@ gs://tespipaber-lumina-raw/streaming/lecturas/fecha=2013-01-15/
 
 ![Alertas del streaming en la tabla lumina_rt.alertas](img/guia/07_alertas.png)
 
-*Captura pendiente: Registro de Spark Structured Streaming con las cinco consultas activas.*
+![Interfaz web de Spark en la VM: las cinco consultas de Structured Streaming activas mientras llegan las lecturas](img/guia/07_streaming_logs.png)
 
 ## Paso 8 · Orquestación con Airflow
 
@@ -631,7 +631,7 @@ inicio >> verificar_raw >> silver >> gold >> cargas >> derivadas >> calidad >> f
 
 **Evidencia.** En la corrida del 3 de noviembre de 2026 las 22 tareas terminaron bien. El primer intento de gold falló por cuota de CPU y el reintento automático lo resolvió; se ve en la lista de trabajos del paso 4 (`lumina-af-gold-…-1` falló y `…-2` terminó bien).
 
-*Captura pendiente: Grafo del DAG lumina_batch_diario en Airflow, con sus tareas en verde.*
+![Grafo del DAG lumina_batch_diario en Airflow, con sus tareas en verde](img/guia/08_airflow_dag.png)
 
 ## Paso 9 · Vistas OLAP: historia y hoy en una sola consulta
 

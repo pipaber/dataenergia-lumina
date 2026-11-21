@@ -237,7 +237,7 @@ Copia de las lecturas en el lake, particionada por fecha:
 
 {{captura 07_alertas.png | Alertas del streaming en la tabla lumina_rt.alertas}}
 
-{{captura 07_streaming_logs.png | Registro de Spark Structured Streaming con las cinco consultas activas}}
+{{captura 07_streaming_logs.png | Interfaz web de Spark en la VM: las cinco consultas de Structured Streaming activas mientras llegan las lecturas}}
 
 ## Paso 8 · Orquestación con Airflow
 
