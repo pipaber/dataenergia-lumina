@@ -1,0 +1,4 @@
+$ gcloud storage ls gs://tespipaber-lumina-raw/streaming/lecturas/
+gs://tespipaber-lumina-raw/streaming/lecturas/_spark_metadata/
+gs://tespipaber-lumina-raw/streaming/lecturas/fecha=2013-01-14/
+gs://tespipaber-lumina-raw/streaming/lecturas/fecha=2013-01-15/

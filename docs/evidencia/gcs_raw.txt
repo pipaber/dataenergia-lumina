@@ -1,0 +1,11 @@
+$ gcloud storage ls gs://tespipaber-lumina-raw/kaggle/smart_meters_london/
+gs://tespipaber-lumina-raw/kaggle/smart_meters_london/daily_dataset/
+gs://tespipaber-lumina-raw/kaggle/smart_meters_london/halfhourly_dataset/
+gs://tespipaber-lumina-raw/kaggle/smart_meters_london/hhblock_dataset/
+gs://tespipaber-lumina-raw/kaggle/smart_meters_london/acorn_details.csv  (0.1 MB)
+gs://tespipaber-lumina-raw/kaggle/smart_meters_london/daily_dataset.csv  (351.8 MB)
+gs://tespipaber-lumina-raw/kaggle/smart_meters_london/darksky_parameters_documentation.html  (0.1 MB)
+gs://tespipaber-lumina-raw/kaggle/smart_meters_london/informations_households.csv  (0.2 MB)
+gs://tespipaber-lumina-raw/kaggle/smart_meters_london/uk_bank_holidays.csv  (0.0 MB)
+gs://tespipaber-lumina-raw/kaggle/smart_meters_london/weather_daily_darksky.csv  (0.3 MB)
+gs://tespipaber-lumina-raw/kaggle/smart_meters_london/weather_hourly_darksky.csv  (2.0 MB)

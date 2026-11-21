@@ -1,0 +1,9 @@
++----------------+-----------+
+| dataset        | ubicacion |
++----------------+-----------+
+| lumina_curated | US        |
+| lumina_ml      | US        |
+| lumina_muestra | US        |
+| lumina_olap    | US        |
+| lumina_rt      | US        |
++----------------+-----------+

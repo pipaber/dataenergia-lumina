@@ -17,6 +17,7 @@ Arquitectura Big Data para una red eléctrica inteligente (Smart Grid), desarrol
 | Consola interna de Lumina | <https://lumina-api-csascndwia-uc.a.run.app/consola> |
 | API (documentación interactiva) | <https://lumina-api-csascndwia-uc.a.run.app/docs> |
 | Presentación (15 diapositivas) | <https://claude.ai/artifact/QHmeEv2B5pmStRPp7h2ri3> |
+| **Guía de implementación paso a paso** (qué se crea, con qué script y la evidencia) | [docs/10_guia_implementacion.md](docs/10_guia_implementacion.md) · [en el libro](https://pipaber.github.io/dataenergia-lumina/docs/10_guia_implementacion.html) |
 | Guion de la exposición | [docs/09_guion_exposicion.md](docs/09_guion_exposicion.md) · [en el libro](https://pipaber.github.io/dataenergia-lumina/docs/09_guion_exposicion.html) |
 | Guion de la demo | [docs/08_guion_demo.md](docs/08_guion_demo.md) · [en el libro](https://pipaber.github.io/dataenergia-lumina/docs/08_guion_demo.html) |
 

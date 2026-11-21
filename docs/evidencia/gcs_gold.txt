@@ -1,0 +1,14 @@
+$ gcloud storage ls gs://tespipaber-lumina-curated/gold/
+gs://tespipaber-lumina-curated/gold/acorn_atributos/
+gs://tespipaber-lumina-curated/gold/dim_acorn/
+gs://tespipaber-lumina-curated/gold/dim_fecha/
+gs://tespipaber-lumina-curated/gold/dim_hogar/
+gs://tespipaber-lumina-curated/gold/dq_medidor/
+gs://tespipaber-lumina-curated/gold/fact_carga_transformador_30min/
+gs://tespipaber-lumina-curated/gold/fact_carga_zona_30min/
+gs://tespipaber-lumina-curated/gold/fact_clima_dia/
+gs://tespipaber-lumina-curated/gold/fact_clima_hora/
+gs://tespipaber-lumina-curated/gold/fact_consumo_30min/
+gs://tespipaber-lumina-curated/gold/fact_consumo_diario/
+gs://tespipaber-lumina-curated/gold/fact_demanda_nacional_30min/
+gs://tespipaber-lumina-curated/gold/perfil_hogar/

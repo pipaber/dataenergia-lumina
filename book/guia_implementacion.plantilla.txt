@@ -1,0 +1,370 @@
+# Guía de implementación paso a paso
+
+> Documento elaborado con asistencia de IA generativa (Claude). Los fragmentos de código se copian directamente de los scripts del repositorio y las salidas son resultados reales del proyecto en Google Cloud.
+
+Esta guía es el entregable para quien tenga que implementar la plataforma: recorre, en orden, todo lo que se creó, con qué script y qué líneas lo hacen, y cómo comprobar que quedó funcionando. Cada paso tiene la misma estructura:
+
+1. **Qué se crea** y para qué.
+2. **El comando** que se ejecuta.
+3. **El fragmento del script** que hace el trabajo.
+4. **La evidencia:** la salida real y una captura de pantalla.
+
+Los comandos se ejecutan desde la raíz del repositorio, en Bash (en Windows, Git Bash). El proyecto de Google Cloud se llama `tespipaber` y la región es `us-central1`.
+
+## Mapa de la implementación
+
+| Paso | Qué se crea | Script | Dónde corre |
+|---|---|---|---|
+| 0 | Configuración del proyecto | `infra/config.env` | Laptop |
+| 1 | APIs y presupuesto con alertas | `infra/01_apis_presupuesto.sh` | Laptop |
+| 2 | Data lake (2 buckets) y 5 datasets de BigQuery | `infra/02_buckets_bigquery.sh` | Laptop |
+| 3 | Datos crudos de Kaggle en el lake | `infra/03_secreto_kaggle.sh`, `infra/04_ingesta_kaggle.sh` | VM temporal |
+| 4 | Capa silver: lecturas limpias | `infra/05_spark_batch.sh silver` | Spark serverless |
+| 5 | Capa gold: modelo de datos | `infra/05_spark_batch.sh gold` | Spark serverless |
+| 6 | Tablas en BigQuery | `infra/06_cargar_bigquery.sh` | BigQuery |
+| 7 | Streaming: Kafka y Spark Structured Streaming | `infra/07_vm_ops.sh` | VM `lumina-ops` |
+| 8 | Orquestación del batch con Airflow | `src/dags/lumina_batch_diario.py` | VM `lumina-ops` |
+| 9 | Vistas OLAP que unen historia y hoy | `infra/09_vistas_olap.sh` | BigQuery |
+| 10 | Tarifas, pronóstico y mantenimiento | `infra/08`, `10`, `11` y `12` | BigQuery ML |
+| 11 | API y dos aplicaciones web | `infra/13_api_cloud_run.sh` | Cloud Run |
+| 12 | Apagado y control de costos | `infra/shutdown.sh`, `infra/teardown.sh` | Laptop |
+
+## Paso 0 · Configuración
+
+**Qué se crea.** Un archivo local con los datos del proyecto. Todos los scripts lo leen, así que ningún nombre queda escrito dentro del código.
+
+```bash
+cp infra/config.example.env infra/config.env    # completar PROJECT_ID, BILLING_ACCOUNT y KAGGLE_API_TOKEN
+```
+
+El archivo `config.env` no se sube al repositorio, porque contiene el token de Kaggle. Requisitos: [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) con sesión iniciada y una cuenta de Kaggle.
+
+## Paso 1 · APIs y presupuesto
+
+**Qué se crea.** Se habilitan los servicios de Google Cloud que usa el proyecto y un presupuesto de S/1,125 (≈ US$300) que avisa por correo al llegar a ≈ US$50, US$150 y US$300.
+
+```bash
+bash infra/01_apis_presupuesto.sh
+```
+
+**Cómo lo hace.** Primero habilita las APIs:
+
+{{codigo infra/01_apis_presupuesto.sh | desde: gcloud services enable | hasta: pubsub.googleapis.com}}
+
+Luego crea el presupuesto con sus umbrales de alerta. El monto va en soles porque la cuenta de facturación está en esa moneda:
+
+{{codigo infra/01_apis_presupuesto.sh | desde: gcloud billing budgets create | hasta: basis=forecasted-spend}}
+
+**Evidencia.**
+
+{{captura 01_presupuesto.png | Presupuesto del proyecto con sus alertas, en Facturación}}
+
+## Paso 2 · Data lake y datasets de BigQuery
+
+**Qué se crea.** Dos buckets (contenedores de archivos) en Cloud Storage, que forman el data lake, y cinco datasets (grupos de tablas) en BigQuery:
+
+| Recurso | Para qué |
+|---|---|
+| `gs://tespipaber-lumina-raw` | Datos tal como llegan: Kaggle y la copia de cada lectura del streaming |
+| `gs://tespipaber-lumina-curated` | Capas silver y gold en Parquet, código de los trabajos y *checkpoints* |
+| `lumina_curated` | Modelo de datos histórico (capa batch) |
+| `lumina_rt` | Resultados del streaming (capa de velocidad) |
+| `lumina_olap` | Vistas que unen historia y hoy |
+| `lumina_ml` | Modelos y sus resultados |
+| `lumina_muestra` | Corridas de prueba con pocos datos |
+
+```bash
+bash infra/02_buckets_bigquery.sh
+```
+
+**Cómo lo hace.** Crea cada bucket sin acceso público:
+
+{{codigo infra/02_buckets_bigquery.sh | desde: gcloud storage buckets create | hasta: --soft-delete-duration 0}}
+
+Y crea los datasets, solo si no existen:
+
+{{codigo infra/02_buckets_bigquery.sh | desde: for ds in $BQ_DATASETS | hasta: done}}
+
+**Evidencia.** Consulta a BigQuery con los datasets creados:
+
+{{salida datasets}}
+
+{{captura 02_buckets.png | Los dos buckets del data lake en Cloud Storage}}
+
+{{captura 02_datasets.png | Los cinco datasets en el explorador de BigQuery}}
+
+## Paso 3 · Ingesta de los datos de Kaggle
+
+**Qué se crea.** Los 9.63 GiB de datos crudos en la capa raw del lake: 112 bloques de lecturas cada 30 minutos, los maestros de hogares, el clima y la demanda nacional.
+
+```bash
+bash infra/03_secreto_kaggle.sh     # guarda el token de Kaggle en Secret Manager
+bash infra/04_ingesta_kaggle.sh     # crea la VM, espera la descarga y la borra
+```
+
+**Cómo lo hace.** La descarga corre dentro de Google Cloud, en una VM temporal. Así no usa el internet de la laptop, y la VM se borra sola a las 3 horas aunque algo falle:
+
+{{codigo infra/04_ingesta_kaggle.sh | desde: gcloud compute instances create "$INGEST_VM" | hasta: kaggle_to_gcs.sh | lenguaje: bash}}
+
+Al arrancar, la VM ejecuta este script, que lee el token desde Secret Manager, descarga cada dataset y lo copia al lake:
+
+{{codigo src/ingestion/kaggle_to_gcs.sh | desde: download() { | hasta: uk_national_demand}}
+
+**Evidencia.** Contenido de la capa raw después de la ingesta:
+
+{{salida gcs_raw}}
+
+{{captura 03_raw.png | Carpeta kaggle/ del bucket raw en Cloud Storage}}
+
+## Paso 4 · Capa silver: limpieza con Spark
+
+**Qué se crea.** Las lecturas limpias y tipadas en Parquet. Spark corre en modo *serverless*: Google asigna las máquinas mientras dura el trabajo y no queda nada encendido.
+
+```bash
+bash infra/05_spark_batch.sh silver --muestra    # prueba barata con 2 bloques
+bash infra/05_spark_batch.sh silver              # los 112 bloques: 10.6 min, ≈ US$0.21
+```
+
+**Cómo lo hace.** El script sube el código al lake y envía el trabajo a Spark, con un tope de ejecutores para controlar el costo:
+
+{{codigo infra/05_spark_batch.sh | desde: gcloud dataproc batches submit pyspark | hasta: --entrada "$ENTRADA"}}
+
+La limpieza está en `silver.py`. Convierte el texto a número, marca las lecturas vacías y las que no caen en una media hora exacta, y elimina duplicados:
+
+{{codigo src/batch/silver.py | desde: kwh_txt = F.trim | hasta: .select("lclid", "ts_utc" | mas: 1 | lenguaje: python}}
+
+**Evidencia.** Trabajos de Spark del proyecto, con su estado. Los que empiezan con `lumina-af-` los lanzó Airflow:
+
+{{salida batches}}
+
+{{captura 04_spark_batches.png | Lista de trabajos (batches) de Spark serverless}}
+
+## Paso 5 · Capa gold: modelo de datos
+
+**Qué se crea.** El modelo estrella en Parquet: dimensiones (hogar, fecha, segmento), hechos de consumo y de carga, el perfil de cada hogar y el diagnóstico de calidad de cada medidor.
+
+```bash
+bash infra/05_spark_batch.sh gold                # 21.8 min, ≈ US$0.44
+```
+
+**Cómo lo hace.** Por ejemplo, la carga de cada transformador se obtiene sumando el consumo de sus hogares en cada media hora:
+
+{{codigo src/batch/gold.py | desde: def fact_carga_transformador | hasta: kWh en 30 min -> kW | mas: 1 | lenguaje: python}}
+
+Y cada medidor recibe un diagnóstico según su historia de lecturas:
+
+{{codigo src/batch/gold.py | desde: return df.withColumn( | hasta: .otherwise("ok") | mas: 1 | lenguaje: python}}
+
+**Evidencia.** Tablas de la capa gold en el lake:
+
+{{salida gcs_gold}}
+
+## Paso 6 · Tablas en BigQuery
+
+**Qué se crea.** Las 13 tablas gold cargadas en `lumina_curated`, más tres tablas derivadas. Cargar Parquet a BigQuery no tiene costo.
+
+```bash
+bash infra/06_cargar_bigquery.sh
+```
+
+**Cómo lo hace.** Una función carga cada tabla. Las tres tablas grandes se particionan por fecha y se agrupan por medidor, para que una consulta lea solo lo que necesita:
+
+{{codigo infra/06_cargar_bigquery.sh | desde: cargar() { | hasta: --clustering_fields zona,transformador}}
+
+Después se crean las tablas derivadas con SQL. Esta guarda una fila por medidor y día, con sus 48 lecturas dentro (`STRUCT` y `ARRAY`):
+
+{{codigo src/sql/gold_derivadas.sql | desde: CREATE OR REPLACE TABLE `${P}.${DS}.consumo_dia_anidado` | hasta: GROUP BY c.lclid | lenguaje: sql}}
+
+**Evidencia.** Tablas de `lumina_curated` con sus filas y tamaño:
+
+{{salida curated}}
+
+Particiones de las dos tablas de consumo:
+
+{{salida particiones}}
+
+Validación contra la fuente: los pares medidor-día y la energía total coinciden exactamente con el agregado diario que publica Kaggle.
+
+{{salida validacion}}
+
+Dos filas de la tabla anidada: cada una trae el hogar como `STRUCT` y sus 48 lecturas como `ARRAY`.
+
+{{salida anidado}}
+
+{{captura 06_bigquery_tablas.png | Tablas de lumina_curated en BigQuery}}
+
+{{captura 06_bigquery_particion.png | Detalles de fact_consumo_30min: particionada por día y agrupada por medidor}}
+
+## Paso 7 · Streaming: Kafka y Spark Structured Streaming
+
+**Qué se crea.** Una VM con Kafka, Spark Structured Streaming y Airflow en contenedores Docker. Se enciende solo para probar o demostrar, y se destruye al terminar.
+
+```bash
+bash infra/07_vm_ops.sh tablas                     # crea las tablas de salida en lumina_rt
+bash infra/07_vm_ops.sh crear streaming,airflow    # crea y enciende la VM (~8 min)
+bash infra/07_vm_ops.sh replay --desde 2013-01-14 --dias 2 --segundos-intervalo 1 \
+  --concentrador-caido Z3-T07 --caida-desde "'2013-01-14 06:00:00'" --anomalias 20
+bash infra/07_vm_ops.sh destruir                   # borra la VM: costo 0 entre demos
+```
+
+**Cómo lo hace.** El script crea la VM. Al arrancar, la VM instala Docker, descarga el código desde el lake y levanta los servicios:
+
+{{codigo infra/07_vm_ops.sh | desde: gcloud compute instances create "$OPS_VM" | hasta: vm_startup.sh}}
+
+El programa de streaming lee las lecturas desde Kafka:
+
+{{codigo src/streaming/streaming_job.py | desde: def kafka(self, topico: str) | hasta: .load()) | lenguaje: python}}
+
+Compara cada lectura con el perfil de su propio hogar. Hay alerta si supera el mayor de tres valores: 4 veces su percentil 95, su media más 8 desviaciones, o 1.5 kWh:
+
+{{codigo src/streaming/streaming_job.py | desde: def consulta_anomalias | hasta: ctx.a_bigquery(alertas, "alertas") | lenguaje: python}}
+
+Y guarda una copia cruda de cada lectura en el lake, para que el batch de la noche la vuelva historia:
+
+{{codigo src/streaming/streaming_job.py | desde: def consulta_bronze | hasta: .start()) | lenguaje: python}}
+
+**Evidencia.** Prueba en vivo del 3 de noviembre de 2026: se reprodujeron 523,868 lecturas de 5,508 hogares, con un concentrador caído y 20 consumos anómalos. Alertas que generó:
+
+{{salida alertas}}
+
+Los 52 medidores del concentrador caído (Z3-T07) están entre los 57 medidores en silencio. Tablas de salida del streaming:
+
+{{salida rt}}
+
+Copia de las lecturas en el lake, particionada por fecha:
+
+{{salida gcs_stream}}
+
+{{captura 07_alertas.png | Alertas del streaming en la tabla lumina_rt.alertas}}
+
+{{captura 07_streaming_logs.png | Registro de Spark Structured Streaming con las cinco consultas activas}}
+
+## Paso 8 · Orquestación con Airflow
+
+**Qué se crea.** Un flujo (DAG) que encadena todo el batch: espera los datos, lanza silver y gold en Spark, carga 13 tablas en BigQuery, recalcula las derivadas y corre 3 controles de calidad.
+
+```bash
+bash infra/07_vm_ops.sh dag muestra    # dispara el DAG con 2 bloques
+bash infra/07_vm_ops.sh tunel          # Airflow en http://localhost:8080
+```
+
+**Cómo lo hace.** Las dos tareas de Spark usan los mismos `silver.py` y `gold.py` del paso 4. Cada intento lleva su número en el nombre, para que un reintento no choque con el anterior:
+
+{{codigo src/dags/lumina_batch_diario.py | desde: silver = DataprocCreateBatchOperator( | hasta: batch=batch_spark("gold" | lenguaje: python}}
+
+El orden de las tareas se declara en una línea:
+
+{{codigo src/dags/lumina_batch_diario.py | desde: inicio >> verificar_raw | hasta: inicio >> verificar_raw | lenguaje: python}}
+
+**Evidencia.** En la corrida del 3 de noviembre de 2026 las 22 tareas terminaron bien. El primer intento de gold falló por cuota de CPU y el reintento automático lo resolvió; se ve en la lista de trabajos del paso 4 (`lumina-af-gold-…-1` falló y `…-2` terminó bien).
+
+{{captura 08_airflow_dag.png | Grafo del DAG lumina_batch_diario en Airflow, con sus tareas en verde}}
+
+## Paso 9 · Vistas OLAP: historia y hoy en una sola consulta
+
+**Qué se crea.** Cinco vistas en `lumina_olap`. Una vista es una consulta guardada que se usa como una tabla; no ocupa espacio ni tiene costo hasta que se consulta.
+
+```bash
+bash infra/09_vistas_olap.sh
+```
+
+**Cómo lo hace.** La vista principal une la carga histórica (batch) con la de hoy (streaming). Del streaming solo toma lo posterior al último dato del batch: si hay diferencia, manda el batch.
+
+{{codigo src/sql/olap_vistas.sql | desde: CREATE OR REPLACE VIEW `${P}.lumina_olap.v_carga_zona_30min` | hasta: DIV(EXTRACT(MINUTE FROM DATETIME(u.ts_utc | lenguaje: sql}}
+
+**Evidencia.**
+
+{{salida olap}}
+
+## Paso 10 · Tarifas, pronóstico y mantenimiento
+
+**Qué se crea.** El análisis de la tarifa dinámica y tres modelos de BigQuery ML, entrenados con SQL sobre los mismos datos.
+
+```bash
+bash infra/08_tarifas_dtou.sh     # calendario oficial de precios 2013
+bash infra/11_tarifas.sh          # factura con cada tarifa y respuesta a los eventos de precio
+bash infra/10_pronostico.sh       # pronóstico del día siguiente, por zona y por hogar
+bash infra/12_mantenimiento.sh    # riesgo de falla por medidor y transformadores sobrecargados
+```
+
+**Cómo lo hace.** El modelo de pronóstico por zona se entrena con una sola sentencia SQL:
+
+{{codigo src/sql/pronostico.sql | desde: CREATE OR REPLACE MODEL `${P}.lumina_ml.modelo_zona_d1` | hasta: WHERE conjunto = 'entrenamiento'; | lenguaje: sql}}
+
+El de fallas de medidores es un clasificador: predice si un medidor fallará el mes siguiente.
+
+{{codigo src/sql/mantenimiento.sql | desde: CREATE OR REPLACE MODEL | hasta: WHERE conjunto = 'entrenamiento'; | lenguaje: sql}}
+
+**Evidencia.** Tablas y resultados en `lumina_ml`:
+
+{{salida ml}}
+
+Error del pronóstico en meses que el modelo no vio (enero y febrero de 2014), frente a suponer que mañana será igual que hoy:
+
+{{salida metricas_pronostico}}
+
+Mantenimiento: fallas encontradas según cuántos medidores se inspeccionan cada mes (julio a diciembre de 2013):
+
+{{salida metricas_mantenimiento}}
+
+Factura media de 2013 con cada tarifa:
+
+{{salida tarifas}}
+
+{{captura 10_bqml_modelo.png | Evaluación del modelo modelo_zona_d1 en BigQuery ML}}
+
+## Paso 11 · API y aplicaciones web
+
+**Qué se crea.** Un servicio en Cloud Run que expone los datos como API y sirve dos aplicaciones web: la app del cliente y la consola interna de Lumina.
+
+```bash
+bash infra/13_api_cloud_run.sh desplegar       # construye la imagen y publica el servicio
+bash infra/13_api_cloud_run.sh desde-github    # igual, tomando el código de GitHub
+```
+
+**Cómo lo hace.** Cada ruta de la API es una consulta parametrizada a BigQuery, con un tope de datos por consulta. Esta devuelve la carga de una zona en un día:
+
+{{codigo src/api/main.py | desde: @app.get("/zonas/{zona}/carga") | hasta: ORDER BY ts_utc""" | lenguaje: python}}
+
+El despliegue usa una cuenta de servicio que solo puede leer, y limita el servicio a una instancia:
+
+{{codigo infra/13_api_cloud_run.sh | desde: gcloud run deploy "$SERVICIO" --project | hasta: --labels "$LABELS"}}
+
+**Evidencia.** Configuración del servicio en línea:
+
+{{salida run}}
+
+| Aplicación | Dirección |
+|---|---|
+| App del cliente | <https://lumina-api-csascndwia-uc.a.run.app/app> |
+| Consola interna | <https://lumina-api-csascndwia-uc.a.run.app/consola> |
+| API (documentación) | <https://lumina-api-csascndwia-uc.a.run.app/docs> |
+
+{{captura 11_cloud_run.png | Servicio lumina-api en Cloud Run}}
+
+{{captura 11_api_docs.png | Documentación interactiva de la API}}
+
+{{captura 11_app_cliente.png | App del cliente: precios de mañana y cuánto se ahorra}}
+
+{{captura 11_consola.png | Consola interna: vista del centro de control}}
+
+## Paso 12 · Apagado y control de costos
+
+**Qué se hace.** Al final de cada sesión se apaga lo que cobra por hora. Al cerrar el curso se borra todo.
+
+```bash
+bash infra/07_vm_ops.sh destruir               # borra la VM de streaming
+bash infra/13_api_cloud_run.sh apagar-demo     # la API vuelve a escalar a cero
+bash infra/shutdown.sh                         # verifica que no quede nada encendido
+bash infra/teardown.sh                         # fin del curso: borra todo (pide confirmación)
+```
+
+**Evidencia.** Cada corrida se anota en la [bitácora de costos](bitacora_costos.log). El gasto acumulado del proyecto es de ≈ US$2.3 de los US$300 disponibles.
+
+| Concepto | Costo medido |
+|---|---|
+| Ingesta de Kaggle (VM temporal) | ≈ US$0.01 |
+| Batch completo, silver y gold (167.8 M de lecturas) | ≤ US$0.65 |
+| Modelos de BigQuery ML (pronóstico y mantenimiento) | ≤ US$0.61 |
+| Sesión en vivo de 70 minutos (VM y Spark) | ≤ US$0.43 |
+| API y aplicaciones en Cloud Run | ≈ US$0 |

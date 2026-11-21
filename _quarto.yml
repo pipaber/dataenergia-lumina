@@ -2,6 +2,8 @@
 #   Vista local:  quarto preview        Render:  quarto render   (sale en _book/)
 # Los capítulos de la Parte I se generan desde docs/entrega1/sustentacion_entrega1.qmd
 # con book/extraer_entrega1.py (pre-render), para que el Word y el libro digan lo mismo.
+# La guía de implementación (docs/10_guia_implementacion.md) se genera con book/armar_guia.py, que copia
+# cada fragmento de código del script real; se regenera a mano y se versiona ya generada.
 project:
   type: book
   output-dir: _book
@@ -38,6 +40,7 @@ book:
         - docs/entrega1/_e1_riesgos.qmd
     - part: "Parte II · Construcción (Entrega 2)"
       chapters:
+        - docs/10_guia_implementacion.md
         - book/setup.qmd
         - docs/02_modelo_datos.md
         - docs/03_streaming.md

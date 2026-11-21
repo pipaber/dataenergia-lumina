@@ -1,0 +1,7 @@
+servicio:            lumina-api
+URL:                 https://lumina-api-csascndwia-uc.a.run.app
+revisión en línea:   lumina-api-00004-q6b
+instancias:          mínimo 1, máximo 1
+recursos:            {'cpu': '1', 'memory': '512Mi'}
+cuenta de servicio:  lumina-api@tespipaber.iam.gserviceaccount.com
+acceso:              INGRESS_TRAFFIC_ALL

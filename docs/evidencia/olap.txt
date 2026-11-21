@@ -1,0 +1,9 @@
++---------------------------+
+| vista                     |
++---------------------------+
+| v_alertas                 |
+| v_calidad_medidores       |
+| v_carga_zona_30min        |
+| v_consumo_segmento_diario |
+| v_red_vs_muestra          |
++---------------------------+

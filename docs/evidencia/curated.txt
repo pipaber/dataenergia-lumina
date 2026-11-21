@@ -1,0 +1,21 @@
++--------------------------------+-----------+------+
+| tabla                          | filas     | gib  |
++--------------------------------+-----------+------+
+| fact_consumo_30min             | 167811461 | 8.28 |
+| fact_carga_transformador_30min | 4394004   | 0.23 |
+| consumo_dia_anidado            | 3510403   | 4.34 |
+| fact_consumo_diario            | 3510403   | 0.25 |
+| perfil_hogar                   | 533804    | 0.04 |
+| fact_carga_zona_30min          | 317746    | 0.01 |
+| fact_demanda_nacional_30min    | 279264    | 0.02 |
+| fact_clima_hora                | 21165     | 0.0  |
+| dim_tarifa_dtou                | 17520     | 0.0  |
+| acorn_atributos                | 14042     | 0.0  |
+| dim_hogar                      | 5566      | 0.0  |
+| dq_medidor                     | 5561      | 0.0  |
+| umbral_zona                    | 3072      | 0.0  |
+| clima_noaa_heathrow            | 1461      | 0.0  |
+| dim_fecha                      | 882       | 0.0  |
+| fact_clima_dia                 | 879       | 0.0  |
+| dim_acorn                      | 18        | 0.0  |
++--------------------------------+-----------+------+

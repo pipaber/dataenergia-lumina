@@ -1,0 +1,19 @@
++--------------------------+---------+
+| tabla                    | filas   |
++--------------------------+---------+
+| factura_tarifas_2013     | 5107    |
+| features_hogar_diario    | 3439325 |
+| features_medidor_mes     | 107840  |
+| features_zona_30min      | 278711  |
+| metricas_mantenimiento   | 4       |
+| metricas_pronostico      | 4       |
+| modelo_falla_medidor     | 17      |
+| modelo_hogar_d1          | 21      |
+| modelo_zona_d1           | 20      |
+| prediccion_falla_medidor | 36537   |
+| pronostico_hogar_d1      | 290034  |
+| pronostico_zona_d1       | 22280   |
+| ranking_medidores        | 5108    |
+| ranking_transformadores  | 112     |
+| respuesta_eventos_2013   | 4       |
++--------------------------+---------+
