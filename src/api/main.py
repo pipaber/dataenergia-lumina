@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from google.cloud import bigquery
 
 PROYECTO = os.environ.get("PROYECTO", "tespipaber")
@@ -52,6 +52,25 @@ async def encabezados_cache(request: Request, call_next):
 
 # ---------------------------------------------------------------- las dos aplicaciones web
 # Mismo origen que la API: las páginas piden sus datos a las rutas de abajo, sin CORS.
+# Los archivos de static/ traen solo el contenido (título, estilos, cuerpo y script); aquí se envuelven en el
+# documento completo. Sin el meta viewport, un teléfono dibuja la página a 980 px de ancho y la encoge.
+ESQUELETO = """<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+"""
+
+
+def pagina(archivo: str) -> HTMLResponse:
+    return HTMLResponse(ESQUELETO + (PAGINAS / archivo).read_text(encoding="utf-8") + "
+</body>
+</html>
+")
+
 
 @app.get("/", include_in_schema=False)
 def inicio():
@@ -61,13 +80,13 @@ def inicio():
 @app.get("/app", include_in_schema=False)
 def app_cliente():
     """App del cliente: precios de mañana, cuánto ahorrar, consumo, factura y avisos de su hogar."""
-    return FileResponse(PAGINAS / "cliente.html", media_type="text/html; charset=utf-8")
+    return pagina("cliente.html")
 
 
 @app.get("/consola", include_in_schema=False)
 def consola():
     """Consola interna de Lumina: una vista por rol (control, compras, mantenimiento, planificación, comercial, gerencia)."""
-    return FileResponse(PAGINAS / "consola.html", media_type="text/html; charset=utf-8")
+    return pagina("consola.html")
 
 
 def bq() -> bigquery.Client:
