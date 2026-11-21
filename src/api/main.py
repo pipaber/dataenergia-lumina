@@ -66,10 +66,7 @@ ESQUELETO = """<!doctype html>
 
 
 def pagina(archivo: str) -> HTMLResponse:
-    return HTMLResponse(ESQUELETO + (PAGINAS / archivo).read_text(encoding="utf-8") + "
-</body>
-</html>
-")
+    return HTMLResponse(ESQUELETO + (PAGINAS / archivo).read_text(encoding="utf-8") + "</body></html>")
 
 
 @app.get("/", include_in_schema=False)
