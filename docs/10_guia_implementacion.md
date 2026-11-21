@@ -86,7 +86,7 @@ gcloud billing budgets create \
 
 **Evidencia.**
 
-*Captura pendiente: Presupuesto del proyecto con sus alertas, en Facturación.*
+![Presupuesto del proyecto con sus alertas, en Facturación](img/guia/01_presupuesto.png)
 
 ## Paso 2 · Data lake y datasets de BigQuery
 
@@ -150,9 +150,9 @@ done
 +----------------+-----------+
 ```
 
-*Captura pendiente: Los dos buckets del data lake en Cloud Storage.*
+![Los dos buckets del data lake en Cloud Storage](img/guia/02_buckets.png)
 
-*Captura pendiente: Los cinco datasets en el explorador de BigQuery.*
+![Los cinco datasets en el explorador de BigQuery](img/guia/02_datasets.png)
 
 ## Paso 3 · Ingesta de los datos de Kaggle
 
@@ -217,7 +217,7 @@ gs://tespipaber-lumina-raw/kaggle/smart_meters_london/weather_daily_darksky.csv 
 gs://tespipaber-lumina-raw/kaggle/smart_meters_london/weather_hourly_darksky.csv  (2.0 MB)
 ```
 
-*Captura pendiente: Carpeta kaggle/ del bucket raw en Cloud Storage.*
+![Carpeta kaggle/ del bucket raw en Cloud Storage](img/guia/03_raw.png)
 
 ## Paso 4 · Capa silver: limpieza con Spark
 
@@ -286,7 +286,7 @@ lumina-af-gold-20261103t205848-1    FAILED     2026-11-03 21:02:20
 lumina-af-gold-20261103t205848-2    SUCCEEDED  2026-11-03 21:05:37
 ```
 
-*Captura pendiente: Lista de trabajos (batches) de Spark serverless.*
+![Lista de trabajos (batches) de Spark serverless](img/guia/04_spark_batches.png)
 
 ## Paso 5 · Capa gold: modelo de datos
 
@@ -459,9 +459,9 @@ Dos filas de la tabla anidada: cada una trae el hogar como `STRUCT` y sus 48 lec
 +-----------+------------+--------+------+------------+---------+
 ```
 
-*Captura pendiente: Tablas de lumina_curated en BigQuery.*
+![Tablas de lumina_curated en BigQuery](img/guia/06_bigquery_tablas.png)
 
-*Captura pendiente: Detalles de fact_consumo_30min: particionada por día y agrupada por medidor.*
+![Detalles de fact_consumo_30min: particionada por día y agrupada por medidor](img/guia/06_bigquery_particion.png)
 
 ## Paso 7 · Streaming: Kafka y Spark Structured Streaming
 
@@ -588,7 +588,7 @@ gs://tespipaber-lumina-raw/streaming/lecturas/fecha=2013-01-14/
 gs://tespipaber-lumina-raw/streaming/lecturas/fecha=2013-01-15/
 ```
 
-*Captura pendiente: Alertas del streaming en la tabla lumina_rt.alertas.*
+![Alertas del streaming en la tabla lumina_rt.alertas](img/guia/07_alertas.png)
 
 *Captura pendiente: Registro de Spark Structured Streaming con las cinco consultas activas.*
 
@@ -793,7 +793,7 @@ Factura media de 2013 con cada tarifa:
 +--------+---------+------------------+---------------+------------+
 ```
 
-*Captura pendiente: Evaluación del modelo modelo_zona_d1 en BigQuery ML.*
+![Evaluación del modelo modelo_zona_d1 en BigQuery ML](img/guia/10_bqml_modelo.png)
 
 ## Paso 11 · API y aplicaciones web
 
@@ -851,7 +851,7 @@ acceso:              INGRESS_TRAFFIC_ALL
 | Consola interna | <https://lumina-api-csascndwia-uc.a.run.app/consola> |
 | API (documentación) | <https://lumina-api-csascndwia-uc.a.run.app/docs> |
 
-*Captura pendiente: Servicio lumina-api en Cloud Run.*
+![Servicio lumina-api en Cloud Run](img/guia/11_cloud_run.png)
 
 ![Documentación interactiva de la API](img/guia/11_api_docs.png)
 

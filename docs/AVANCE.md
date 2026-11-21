@@ -75,7 +75,7 @@ Detalle y resultados → [05_analitica.md](05_analitica.md)
 - ✅ Guion de demo end-to-end → [08_guion_demo.md](08_guion_demo.md)
 - ✅ Slides con los 10 puntos del PDF (14 diapositivas, artifact privado; descargable como PowerPoint)
 - ✅ Guía de implementación paso a paso: 12 pasos con el comando, el fragmento del script y la salida real → [10_guia_implementacion.md](10_guia_implementacion.md) (generada con `book/armar_guia.py`)
-- 🟡 Capturas de pantalla de la guía → `docs/img/guia/`
+- 🟡 Capturas de pantalla de la guía → `docs/img/guia/` (13 de 15; faltan Airflow y el registro del streaming, que necesitan la VM encendida)
 - ✅ Guion de la exposición por bloques → [09_guion_exposicion.md](09_guion_exposicion.md); links de todo en el README
 - ✅ API con 1 instancia siempre encendida para la sustentación (apagar después con `13_api_cloud_run.sh apagar-demo`)
 - ⬜ Compartir la presentación con el grupo, ensayar la demo (alumnos) y entregar el repositorio (20-nov)
