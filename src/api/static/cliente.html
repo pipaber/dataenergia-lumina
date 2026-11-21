@@ -50,7 +50,7 @@ strong { font-weight: 700; }
 .tramo { display: grid; grid-template-columns: 7.5em 1fr auto; gap: 12px; align-items: baseline; padding: 11px 0; border-bottom: 1px solid var(--linea); }
 .tramo .horas { font-weight: 500; }
 .tramo .nivel { display: flex; align-items: baseline; gap: 8px; font-weight: 600; }
-.tramo .nivel::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--c); transform: translateY(-1px); }
+.tramo .nivel::before { content: ""; flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--c); transform: translateY(-1px); }
 .tramo .precio { color: var(--tenue); font-size: 14px; }
 .tramo.alto { --c: var(--alto); } .tramo.normal { --c: var(--normal); } .tramo.bajo { --c: var(--bajo); }
 .tramo.alto .nivel { color: var(--alto); }

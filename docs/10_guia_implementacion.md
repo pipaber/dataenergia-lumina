@@ -853,11 +853,11 @@ acceso:              INGRESS_TRAFFIC_ALL
 
 *Captura pendiente: Servicio lumina-api en Cloud Run.*
 
-*Captura pendiente: Documentación interactiva de la API.*
+![Documentación interactiva de la API](img/guia/11_api_docs.png)
 
-*Captura pendiente: App del cliente: precios de mañana y cuánto se ahorra.*
+![App del cliente: precios de mañana y cuánto se ahorra](img/guia/11_app_cliente.png)
 
-*Captura pendiente: Consola interna: vista del centro de control.*
+![Consola interna: vista del centro de control](img/guia/11_consola.png)
 
 ## Paso 12 · Apagado y control de costos
 
